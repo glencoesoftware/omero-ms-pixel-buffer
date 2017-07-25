@@ -46,6 +46,7 @@ configurations.all {
     exclude group: 'edu.ucar'
     exclude group: 'freemarker'
     exclude group: 'gnu.getopt'
+    exclude group: 'hsqldb'
     exclude group: 'javassist'
     exclude group: 'javax.jts'
     exclude group: 'org.apache.lucene'
