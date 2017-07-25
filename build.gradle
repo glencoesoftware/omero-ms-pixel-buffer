@@ -50,8 +50,6 @@ configurations.all {
     exclude group: 'javax.jts'
     exclude group: 'org.apache.lucene'
     exclude group: 'org.apache.httpcomponents'
-    exclude group: 'org.hibernate'
-    exclude group: 'org.hibernate.javax.persistence'
     exclude group: 'org.ini4j'
     exclude group: 'org.uncommons'
     exclude group: 'org.subethamail'
