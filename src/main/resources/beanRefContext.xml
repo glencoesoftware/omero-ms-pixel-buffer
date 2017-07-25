@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN"
+  "http://www.springframework.org/dtd/spring-beans.dtd">
+<beans>
+  <description>
+        Defines the beans for the pixel data microservice.
+  </description>
+
+  <bean name="filesystem"  abstract="true">
+    <constructor-arg index="0" value="${omero.data.dir}"/>
+  </bean>
+
+  <bean id="omeroFilePathResolver" class="ome.services.OmeroFilePathResolver">
+    <constructor-arg value="${omero.data.dir}"/>
+    <constructor-arg ref="simpleSqlAction"/>
+  </bean>
+
+  <!-- Casting string to Long to prevent the wrong ctor from being used -->
+  <bean name="MemoizerWait" class="java.lang.Long">
+    <constructor-arg value="${omero.pixeldata.memoizer_wait}"/>
+  </bean>
+
+  <bean id="backOff" class="${omero.pixeldata.backoff}">
+    <constructor-arg ref="tileSizes"/>
+  </bean>
+
+  <bean id="configuredTileSizes" class="ome.io.nio.ConfiguredTileSizes">
+    <constructor-arg index="0" value="${omero.pixeldata.tile_width}"/>
+    <constructor-arg index="1" value="${omero.pixeldata.tile_height}"/>
+    <constructor-arg index="2" value="${omero.pixeldata.max_plane_width}"/>
+    <constructor-arg index="3" value="${omero.pixeldata.max_plane_height}"/>
+  </bean>
+
+  <alias name="${omero.pixeldata.tile_sizes_bean}" alias="tileSizes"/>
+
+  <alias name="${omero.metrics.bean}" alias="metrics"/>
+
+  <bean id="defaultMetrics" class="ome.system.metrics.DefaultMetrics">
+    <property name="slf4jMinutes" value="${omero.metrics.slf4j_minutes}"/>
+    <property name="beginsWith">
+        <list><value>ome.services.pixeldata</value></list>
+    </property>
+    <property name="graphiteAddress" value="${omero.metrics.graphite}"/>
+  </bean>
+
+  <bean id="nullMetrics" class="ome.system.metrics.NullMetrics"/>
+
+  <bean name="/OMERO/Pixels" class="ome.io.nio.PixelsService"
+        parent="filesystem">
+    <!-- index=0 "path" comes from parent -->
+    <constructor-arg index="1" ref="MemoizerWait"/>
+    <constructor-arg ref="omeroFilePathResolver"/>
+    <constructor-arg ref="backOff"/>
+    <constructor-arg ref="tileSizes"/>
+    <constructor-arg><null /></constructor-arg>
+    <property name="metrics" ref="metrics"/>
+  </bean>
+
+</beans>

@@ -1,0 +1,92 @@
+plugins {
+    id 'application'
+    id 'eclipse'
+    id 'java'
+}
+
+group = 'com.glencoesoftware.omero'
+version = '0.1.0-SNAPSHOT'
+
+mainClassName = 'io.vertx.core.Starter'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    maven {
+        name 'Unidata'
+        url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
+    }
+    maven {
+        url 'http://artifacts.openmicroscopy.org/artifactory/maven/'
+    }
+    maven {
+        url 'https://artifacts.glencoesoftware.com/artifactory/gs-omero-snapshots-local'
+    }
+}
+
+configurations.all {
+    resolutionStrategy.cacheChangingModulesFor 0, 'minutes'
+    exclude group: 'OME'
+    exclude group: 'antlr'
+    exclude group: 'asm'
+    exclude group: 'backport-util-concurrent'
+    exclude group: 'batik'
+    exclude group: 'cglib'
+    exclude group: 'com.jamonapi'
+    exclude group: 'com.mortennobel'
+    exclude group: 'commons-beanutils'
+    exclude group: 'commons-codec'
+    exclude group: 'commons-collections'
+    exclude group: 'commons-io'
+    exclude group: 'commons-lang'
+    exclude group: 'commons-pool'
+    exclude group: 'dom4j'
+    exclude group: 'edu.ucar'
+    exclude group: 'freemarker'
+    exclude group: 'gnu.getopt'
+    exclude group: 'javassist'
+    exclude group: 'javax.jts'
+    exclude group: 'org.apache.lucene'
+    exclude group: 'org.apache.httpcomponents'
+    exclude group: 'org.hibernate'
+    exclude group: 'org.hibernate.javax.persistence'
+    exclude group: 'org.ini4j'
+    exclude group: 'org.subethamail'
+    exclude group: 'pdfbox'
+    exclude group: 'quartz'
+    exclude group: 'xerces'
+    exclude group: 'xml-apis'
+    exclude group: 'zeroc', module: 'ice-db'
+    exclude group: 'zeroc', module: 'ice-freeze'
+    exclude group: 'zeroc', module: 'ice-grid'
+    exclude group: 'zeroc', module: 'ice-storm'
+}
+
+dependencies {
+    compile 'ch.qos.logback:logback-classic:1.1.7'
+    compile 'com.glencoesoftware.omero:omero-ms-core:0.1.0-SNAPSHOT'
+    compile 'omero:blitz:5.2.8-ice35-b57'
+    testCompile 'org.testng:testng:6.10'
+}
+
+jar {
+    manifest {
+        attributes(
+            "Main-Class": mainClassName,
+            "Main-Verticle": "com.glencoesoftware.omero.ms.pixelbuffer.PixelBufferMicroserviceVerticle"
+        )
+    }
+}
+
+test {
+  // enable TestNG support (default is JUnit)
+  useTestNG()
+}
+
+applicationDistribution.from("$projectDir") {
+    include 'README.md'
+    include 'conf.json.example'
+    include 'omero-ms-pixel-buffer.service'
+}
