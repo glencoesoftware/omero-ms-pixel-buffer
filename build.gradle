@@ -68,6 +68,9 @@ dependencies {
     compile 'ch.qos.logback:logback-classic:1.1.7'
     compile 'com.glencoesoftware.omero:omero-ms-core:0.1.0-SNAPSHOT'
     compile 'omero:blitz:5.2.8-ice35-b57'
+    compile ('omero:dsl:5.2.8-ice35-b57') {
+        exclude group: 'org.testng'
+    }
     testCompile 'org.testng:testng:6.10'
 }
 
