@@ -141,14 +141,14 @@ What follows is a snippet which can be placed in your nginx configuration,
 *webgateway* image region rendering currently used by OMERO.web to the
 image region microservice server endpoint::
 
-    upstream pixel-buffer-backend {
+    upstream pixel_buffer_backend {
         server 127.0.0.1:8080 fail_timeout=0 max_fails=0;
     }
 
     ...
 
     location /tile/ {
-        proxy_pass http://image_region_backend;
+        proxy_pass http://pixel_buffer_backend;
     }
 
 Running Tests
