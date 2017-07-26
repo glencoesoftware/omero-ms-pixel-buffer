@@ -73,6 +73,9 @@ public class TileRequestHandler {
             Pixels pixels = getPixels(client, tileCtx.pixelsId);
             if (pixels != null) {
                 try (PixelBuffer pixelBuffer = getPixelBuffer(pixels)) {
+                    if (tileCtx.resolution != null) {
+                        pixelBuffer.setResolutionLevel(tileCtx.resolution);
+                    }
                     ByteBuffer tileByteBuffer = pixelBuffer.getTile(
                         tileCtx.z, tileCtx.c, tileCtx.t,
                         tileCtx.region.getX(), tileCtx.region.getY(),

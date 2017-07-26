@@ -18,6 +18,8 @@
 
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
+import java.util.Optional;
+
 import org.slf4j.LoggerFactory;
 
 import com.glencoesoftware.omero.ms.core.OmeroRequestCtx;
@@ -70,9 +72,12 @@ public class TileCtx extends OmeroRequestCtx {
         Integer width = Integer.parseInt(params.get("w"));
         Integer height = Integer.parseInt(params.get("h"));
         region = new RegionDef(x, y, width, height);
+        resolution = Optional.ofNullable(params.get("resolution"))
+                .map(Integer::parseInt)
+                .orElse(null);
 
-        log.debug("Pixels:{}, z: {}, c: {}, t: {}, region: {}",
-                pixelsId, z, c, t, region);
+        log.debug("Pixels:{}, z: {}, c: {}, t: {}, resolution: {}, region: {}",
+                pixelsId, z, c, t, resolution, region);
     }
 
 }
