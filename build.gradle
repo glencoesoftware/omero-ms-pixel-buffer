@@ -2,6 +2,7 @@ plugins {
     id 'application'
     id 'eclipse'
     id 'java'
+    id 'maven'
 }
 
 group = 'com.glencoesoftware.omero'
