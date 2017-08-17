@@ -94,3 +94,16 @@ applicationDistribution.from("$projectDir") {
     include 'conf.json.example'
     include 'omero-ms-pixel-buffer.service'
 }
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: 'https://artifacts.glencoesoftware.com/artifactory/gs-omero-snapshots-local') {
+                authentication(
+                    userName: project.properties.ArtifactoryUserName,
+                    password: project.properties.ArtifactoryPassword
+                )
+            }
+        }
+    }
+}
