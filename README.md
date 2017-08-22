@@ -9,7 +9,7 @@ OMERO.web.
 Requirements
 ============
 
-* OMERO 5.2.x+
+* OMERO 5.3.x+
 * OMERO.web 5.2.x+
 * Redis backed sessions
 * Java 8+
@@ -124,7 +124,7 @@ output similar to the following::
        Active: active (running) since Thu 2017-06-01 14:40:53 UTC; 8min ago
      Main PID: 9096 (java)
        CGroup: /system.slice/omero-ms-pixel-buffer.service
-               └─9096 java -Dlogback.configurationFile=/opt/omero/omero-ms-pixel-buffer-0.1.0-SNAPSHOT/logback.xml -classpath /opt/omero/omero-ms-pixel-buffer-0.1.0-SNAPSHOT/lib/omero-ms-pixel-buffer-0.1.0-SNAPSHOT.jar:/opt/omero/omero-...
+               └─9096 java -Dlogback.configurationFile=/opt/omero/omero-ms-pixel-buffer-0.2.0-SNAPSHOT/logback.xml -classpath /opt/omero/omero-ms-pixel-buffer-0.2.0-SNAPSHOT/lib/omero-ms-pixel-buffer-0.2.0-SNAPSHOT.jar:/opt/omero/omero-...
 
     Jun 01 14:40:53 demo.glencoesoftware.com systemd[1]: Started OMERO image region microservice server.
     Jun 01 14:40:53 demo.glencoesoftware.com systemd[1]: Starting OMERO image region microservice server...
