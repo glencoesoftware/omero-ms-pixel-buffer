@@ -50,6 +50,9 @@ public class TileCtx extends OmeroRequestCtx {
     /** Region descriptor (region); X, Y, width, and height pixel offsets */
     public RegionDef region;
 
+    /** Optional region output format ("tif" only at present) */
+    public String format;
+
     /**
      * Constructor for jackson to decode the object from string
      */
@@ -75,9 +78,12 @@ public class TileCtx extends OmeroRequestCtx {
         resolution = Optional.ofNullable(params.get("resolution"))
                 .map(Integer::parseInt)
                 .orElse(null);
+        format = params.get("format");
 
-        log.debug("Pixels:{}, z: {}, c: {}, t: {}, resolution: {}, region: {}",
-                pixelsId, z, c, t, resolution, region);
+        log.debug(
+                "Pixels:{}, z: {}, c: {}, t: {}, resolution: {}, " +
+                "region: {}, format: {}",
+                pixelsId, z, c, t, resolution, region, format);
     }
 
 }
