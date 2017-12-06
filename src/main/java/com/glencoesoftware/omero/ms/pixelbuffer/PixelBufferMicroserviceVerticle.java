@@ -18,8 +18,6 @@
 
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
-import java.util.Map.Entry;
-
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -43,7 +41,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.CookieHandler;
-import omero.model.Image;
 
 /**
  * Main entry point for the OMERO pixel buffer Vert.x microservice server.
@@ -146,7 +143,7 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 request.params(), event.get("omero.session_key"));
 
         final HttpServerResponse response = event.response();
-        vertx.eventBus().send(
+        vertx.eventBus().<byte[]>send(
                 PixelBufferVerticle.GET_TILE_EVENT,
                 Json.encode(tileCtx), result -> {
             try {
@@ -159,7 +156,7 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                     response.setStatusCode(statusCode);
                     return;
                 }
-                byte[] tile = (byte []) result.result().body();
+                byte[] tile = result.result().body();
                 response.headers().set(
                         "Content-Type", "application/octet-stream");
                 response.headers().set(

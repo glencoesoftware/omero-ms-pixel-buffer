@@ -92,7 +92,7 @@ public class PixelBufferVerticle extends AbstractVerticle {
         log.debug("Load tile with data: {}", message.body());
             log.debug("Connecting to the server: {}, {}, {}",
                       host, port, tileCtx.omeroSessionKey);
-            try (OmeroRequest<byte[]> request = new OmeroRequest<byte[]>(
+            try (OmeroRequest request = new OmeroRequest(
                      host, port, tileCtx.omeroSessionKey))
             {
                 byte[] tile = request.execute(
