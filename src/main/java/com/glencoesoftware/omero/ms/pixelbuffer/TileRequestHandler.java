@@ -18,14 +18,29 @@
 
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferUShort;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.spi.IIORegistry;
+import javax.imageio.spi.ServiceRegistry;
+import javax.imageio.stream.ImageOutputStream;
 
 import org.perf4j.StopWatch;
 import org.perf4j.slf4j.Slf4JStopWatch;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
+
+import com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriter;
+import com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriterSpi;
 
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
@@ -35,6 +50,8 @@ import omero.model.Image;
 import omero.model.Pixels;
 import omero.sys.ParametersI;
 import omero.util.IceMapper;
+
+import static omero.rtypes.unwrap;
 
 public class TileRequestHandler {
 
@@ -81,6 +98,28 @@ public class TileRequestHandler {
                         tileCtx.region.getX(), tileCtx.region.getY(),
                         tileCtx.region.getWidth(), tileCtx.region.getHeight())
                             .getData();
+
+                    String format = tileCtx.format;
+                    if (format != null) {
+                        ByteArrayOutputStream output =
+                                new ByteArrayOutputStream();
+                        BufferedImage image =
+                                createBufferedImage(pixels, tileByteBuffer);
+                        if (image == null) {
+                            return null;
+                        }
+
+                        if (format.equals("png")) {
+                            ImageIO.write(image, "png", output);
+                            return output.toByteArray();
+                        }
+                        if (format.equals("tif")) {
+                            writeTiff(image, output);
+                            return output.toByteArray();
+                        }
+                        log.error("Unknown output format: {}", format);
+                        return null;
+                    }
                     byte[] tile = new byte[tileByteBuffer.capacity()];
                     tileByteBuffer.get(tile);
                     return tile;
@@ -133,4 +172,64 @@ public class TileRequestHandler {
         }
     }
 
+    /**
+     * Create a buffered image for a given tile
+     * @param pixels metadata to use when creating the buffered image
+     * @param tileByteBuffer data to create the buffered image with
+     * @return See above.
+     */
+    private BufferedImage createBufferedImage(
+            Pixels pixels, ByteBuffer tileByteBuffer) {
+        BufferedImage image = null;
+        String pixelsType = (String) unwrap(pixels.getPixelsType().getValue());
+        if (pixelsType.endsWith("int8")) {
+            log.debug(
+                "Mapping pixels type {} to BufferedImage.TYPE_BYTE_GRAY",
+                pixelsType);
+            image = new BufferedImage(
+                    tileCtx.region.getWidth(), tileCtx.region.getHeight(),
+                    BufferedImage.TYPE_BYTE_GRAY);
+            byte[] dataBuffer = ((DataBufferByte) image.getRaster()
+                    .getDataBuffer()).getData();
+            tileByteBuffer.get(dataBuffer);
+            return image;
+        }
+        if (pixelsType.endsWith("int16")) {
+            log.debug(
+                "Mapping pixels type {} to BufferedImage.TYPE_USHORT_GRAY",
+                pixelsType);
+            image = new BufferedImage(
+                    tileCtx.region.getWidth(), tileCtx.region.getHeight(),
+                    BufferedImage.TYPE_USHORT_GRAY);
+            short[] dataBuffer = ((DataBufferUShort) image.getRaster()
+                    .getDataBuffer()).getData();
+            tileByteBuffer.asShortBuffer().get(dataBuffer);
+            return image;
+        }
+        log.error("Unsupported pixel type: {}", pixelsType);
+        return null;
+    }
+
+    /**
+     * Writes a buffered image to a TIFF output stream.
+     * @param image buffered image to write out as a TIFF
+     * @param output output stream to write to
+     * @throws IOException If there is an error writing to
+     * <code>output</code>.
+     */
+    private void writeTiff(BufferedImage image, OutputStream output)
+            throws IOException {
+        try (ImageOutputStream ios =
+                ImageIO.createImageOutputStream(output)) {
+            IIORegistry registry = IIORegistry.getDefaultInstance();
+            registry.registerServiceProviders(
+                    ServiceRegistry.lookupProviders(
+                            TIFFImageWriterSpi.class));
+            TIFFImageWriterSpi spi = registry.getServiceProviderByClass(
+                    TIFFImageWriterSpi.class);
+            TIFFImageWriter writer = new TIFFImageWriter(spi);
+            writer.setOutput(ios);
+            writer.write(null, new IIOImage(image, null, null), null);
+        }
+    }
 }
