@@ -10,7 +10,7 @@ Requirements
 ============
 
 * OMERO 5.3.x+
-* OMERO.web 5.2.x+
+* OMERO.web 5.3.x+
 * Redis backed sessions
 * Java 8+
 
