@@ -32,8 +32,8 @@ public class TileCtx extends OmeroRequestCtx {
     private static final org.slf4j.Logger log =
             LoggerFactory.getLogger(TileCtx.class);
 
-    /** Pixels Id*/
-    public Long pixelsId;
+    /** Image Id*/
+    public Long imageId;
 
     /** z - index */
     public Integer z;
@@ -66,7 +66,7 @@ public class TileCtx extends OmeroRequestCtx {
      */
     TileCtx(MultiMap params, String omeroSessionKey) {
         this.omeroSessionKey = omeroSessionKey;
-        pixelsId = Long.parseLong(params.get("pixelsId"));
+        imageId = Long.parseLong(params.get("imageId"));
         z = Integer.parseInt(params.get("z"));
         c = Integer.parseInt(params.get("c"));
         t = Integer.parseInt(params.get("t"));
@@ -81,9 +81,9 @@ public class TileCtx extends OmeroRequestCtx {
         format = params.get("format");
 
         log.debug(
-                "Pixels:{}, z: {}, c: {}, t: {}, resolution: {}, " +
+                "Image:{}, z: {}, c: {}, t: {}, resolution: {}, " +
                 "region: {}, format: {}",
-                pixelsId, z, c, t, resolution, region, format);
+                imageId, z, c, t, resolution, region, format);
     }
 
 }

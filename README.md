@@ -48,7 +48,7 @@ value. This is the OMERO.web session key.
 1. Run single or multiple tile tests using `curl`::
 
         curl -H 'Cookie: sessionid=<omero_web_session_key>' \
-            http://localhost:8080/tile/<pixels_id>/<z>/<c>/<t>/<x>/<y>/<w>/<h>
+            http://localhost:8080/tile/<image_id>/<z>/<c>/<t>/<x>/<y>/<w>/<h>
 
 Eclipse Configuration
 =====================
