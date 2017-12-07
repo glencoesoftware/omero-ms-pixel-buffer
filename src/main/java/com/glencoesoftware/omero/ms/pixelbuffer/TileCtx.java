@@ -70,20 +70,23 @@ public class TileCtx extends OmeroRequestCtx {
         z = Integer.parseInt(params.get("z"));
         c = Integer.parseInt(params.get("c"));
         t = Integer.parseInt(params.get("t"));
-        Integer x = Integer.parseInt(params.get("x"));
-        Integer y = Integer.parseInt(params.get("y"));
-        Integer width = Integer.parseInt(params.get("w"));
-        Integer height = Integer.parseInt(params.get("h"));
+        Integer x = Optional.ofNullable(params.get("x"))
+                .map(Integer::parseInt)
+                .orElse(0);
+        Integer y = Optional.ofNullable(params.get("y"))
+                .map(Integer::parseInt)
+                .orElse(0);
+        Integer width = Optional.ofNullable(params.get("w"))
+                .map(Integer::parseInt)
+                .orElse(0);
+        Integer height = Optional.ofNullable(params.get("h"))
+                .map(Integer::parseInt)
+                .orElse(0);
         region = new RegionDef(x, y, width, height);
         resolution = Optional.ofNullable(params.get("resolution"))
                 .map(Integer::parseInt)
                 .orElse(null);
         format = params.get("format");
-
-        log.debug(
-                "Image:{}, z: {}, c: {}, t: {}, resolution: {}, " +
-                "region: {}, format: {}",
-                imageId, z, c, t, resolution, region, format);
     }
 
 }

@@ -105,7 +105,7 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
 
         // Pixel buffer request handlers
         router.get(
-                "/tile/:imageId/:z/:c/:t/:x/:y/:w/:h")
+                "/tile/:imageId/:z/:c/:t")
             .handler(this::getTile);
 
         int port = config().getInteger("port");
