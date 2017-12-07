@@ -90,8 +90,15 @@ public class TileRequestHandler {
             Pixels pixels = getPixels(client, tileCtx.imageId);
             if (pixels != null) {
                 try (PixelBuffer pixelBuffer = getPixelBuffer(pixels)) {
+                    String format = tileCtx.format;
                     if (tileCtx.resolution != null) {
                         pixelBuffer.setResolutionLevel(tileCtx.resolution);
+                    }
+                    if (tileCtx.region.getWidth() == 0) {
+                        tileCtx.region.setWidth(pixels.getSizeX().getValue());
+                    }
+                    if (tileCtx.region.getHeight() == 0) {
+                        tileCtx.region.setHeight(pixels.getSizeY().getValue());
                     }
                     ByteBuffer tileByteBuffer = pixelBuffer.getTile(
                         tileCtx.z, tileCtx.c, tileCtx.t,
@@ -99,7 +106,11 @@ public class TileRequestHandler {
                         tileCtx.region.getWidth(), tileCtx.region.getHeight())
                             .getData();
 
-                    String format = tileCtx.format;
+                    log.debug(
+                            "Image:{}, z: {}, c: {}, t: {}, resolution: {}, " +
+                            "region: {}, format: {}",
+                            tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
+                            tileCtx.resolution, tileCtx.region, format);
                     if (format != null) {
                         ByteArrayOutputStream output =
                                 new ByteArrayOutputStream();
