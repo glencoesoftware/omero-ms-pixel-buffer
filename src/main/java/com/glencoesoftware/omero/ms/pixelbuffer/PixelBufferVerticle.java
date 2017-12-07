@@ -99,7 +99,7 @@ public class PixelBufferVerticle extends AbstractVerticle {
                         new TileRequestHandler(context, tileCtx)::getTile);
                 if (tile == null) {
                     message.fail(
-                            404, "Cannot find Pixels:" + tileCtx.pixelsId);
+                            404, "Cannot find Image:" + tileCtx.imageId);
                 } else {
                     message.reply(tile);
                 }

@@ -87,7 +87,7 @@ public class TileRequestHandler {
     public byte[] getTile(omero.client client) {
         StopWatch t0 = new Slf4JStopWatch("getTile");
         try {
-            Pixels pixels = getPixels(client, tileCtx.pixelsId);
+            Pixels pixels = getPixels(client, tileCtx.imageId);
             if (pixels != null) {
                 try (PixelBuffer pixelBuffer = getPixelBuffer(pixels)) {
                     if (tileCtx.resolution != null) {
@@ -125,7 +125,7 @@ public class TileRequestHandler {
                     return tile;
                 }
             } else {
-                log.debug("Cannot find Pixels:{}", tileCtx.pixelsId);
+                log.debug("Cannot find Image:{}", tileCtx.imageId);
             }
         } catch (Exception e) {
             log.error("Exception while retrieving tile", e);
@@ -147,24 +147,24 @@ public class TileRequestHandler {
     }
 
     /**
-     * Retrieves a single {@link Image} from the server.
+     * Retrieves a single {@link Pixels} from the server.
      * @param client OMERO client to use for querying.
-     * @param pixelsId {@link Pixels} identifier to query for.
+     * @param imageId {@link Image} identifier to query for.
      * @return Loaded {@link Pixels} or <code>null</code> if it does not exist.
      * @throws ServerError If there was any sort of error retrieving the pixels.
      */
-    protected Pixels getPixels(omero.client client, Long pixelsId)
+    protected Pixels getPixels(omero.client client, Long imageId)
             throws ServerError {
         Map<String, String> ctx = new HashMap<String, String>();
         ctx.put("omero.group", "-1");
         ParametersI params = new ParametersI();
-        params.addId(pixelsId);
+        params.addId(imageId);
         StopWatch t0 = new Slf4JStopWatch("getPixels");
         try {
             return (Pixels) client.getSession().getQueryService().findByQuery(
                 "SELECT p FROM Pixels as p " +
                 "JOIN FETCH p.pixelsType " +
-                "WHERE p.id = :id",
+                "WHERE p.image.id = :id",
                 params, ctx
             );
         } finally {
