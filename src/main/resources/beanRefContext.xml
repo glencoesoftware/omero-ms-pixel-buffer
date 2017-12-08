@@ -45,15 +45,4 @@
 
   <bean id="nullMetrics" class="ome.system.metrics.NullMetrics"/>
 
-  <bean name="/OMERO/Pixels" class="ome.io.nio.PixelsService"
-        parent="filesystem">
-    <!-- index=0 "path" comes from parent -->
-    <constructor-arg index="1" ref="MemoizerWait"/>
-    <constructor-arg ref="omeroFilePathResolver"/>
-    <constructor-arg ref="backOff"/>
-    <constructor-arg ref="tileSizes"/>
-    <constructor-arg><null /></constructor-arg>
-    <property name="metrics" ref="metrics"/>
-  </bean>
-
 </beans>
