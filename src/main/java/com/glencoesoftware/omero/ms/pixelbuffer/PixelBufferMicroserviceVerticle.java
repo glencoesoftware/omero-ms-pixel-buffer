@@ -157,11 +157,23 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                     return;
                 }
                 byte[] tile = result.result().body();
+                String contentType = "application/octet-stream";
+                if (tileCtx.format.equals("png")) {
+                    contentType = "image/png";
+                }
+                if (tileCtx.format.equals("tif")) {
+                    contentType = "image/tiff";
+                }
                 response.headers().set(
-                        "Content-Type", "application/octet-stream");
+                        "Content-Type", contentType);
                 response.headers().set(
                         "Content-Length",
                         String.valueOf(tile.length));
+                response.headers().set(
+                        "Content-Disposition",
+                        String.format(
+                                "attachment; filename=\"%s\"",
+                                result.result().headers().get("filename")));
                 response.write(Buffer.buffer(tile));
             } finally {
                 response.end();

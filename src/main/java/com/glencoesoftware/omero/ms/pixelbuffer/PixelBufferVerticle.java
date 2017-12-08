@@ -19,6 +19,8 @@
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
 
+import java.util.Optional;
+
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
@@ -28,6 +30,7 @@ import com.glencoesoftware.omero.ms.core.OmeroRequest;
 import Glacier2.CannotCreateSessionException;
 import Glacier2.PermissionDeniedException;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 
 /**
@@ -101,7 +104,19 @@ public class PixelBufferVerticle extends AbstractVerticle {
                     message.fail(
                             404, "Cannot find Image:" + tileCtx.imageId);
                 } else {
-                    message.reply(tile);
+                    DeliveryOptions deliveryOptions = new DeliveryOptions();
+                    deliveryOptions.addHeader(
+                        "filename", String.format(
+                            "image%d_z%d_c%d_t%d_x%d_y%d_w%d_h%d.%s",
+                            tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
+                            tileCtx.region.getX(),
+                            tileCtx.region.getY(),
+                            tileCtx.region.getWidth(),
+                            tileCtx.region.getHeight(),
+                            Optional.ofNullable(tileCtx.format).orElse("bin")
+                        )
+                    );
+                    message.reply(tile, deliveryOptions);
                 }
             } catch (PermissionDeniedException
                     | CannotCreateSessionException e) {
