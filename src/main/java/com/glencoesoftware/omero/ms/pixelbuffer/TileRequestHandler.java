@@ -174,6 +174,7 @@ public class TileRequestHandler {
         try {
             return (Pixels) client.getSession().getQueryService().findByQuery(
                 "SELECT p FROM Pixels as p " +
+                "JOIN FETCH p.image " +
                 "JOIN FETCH p.pixelsType " +
                 "WHERE p.image.id = :id",
                 params, ctx
