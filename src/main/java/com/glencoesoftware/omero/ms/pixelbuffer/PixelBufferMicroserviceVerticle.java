@@ -169,6 +169,11 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 response.headers().set(
                         "Content-Length",
                         String.valueOf(tile.length));
+                response.headers().set(
+                        "Content-Disposition",
+                        String.format(
+                                "attachment; filename=\"%s\"",
+                                result.result().headers().get("filename")));
                 response.write(Buffer.buffer(tile));
             } finally {
                 response.end();
