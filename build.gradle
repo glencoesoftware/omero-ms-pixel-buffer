@@ -75,7 +75,7 @@ dependencies {
     compile ('com.glencoesoftware.omero:omero-ms-core:0.3.0-SNAPSHOT') {
         exclude group: 'org.testng', module: 'testng'
     }
-    compile ('omero:blitz:5.4.3-ice36-b77') {
+    compile ('omero:blitz:5.4.4-ice36-b82') {
         exclude group: 'org.testng', module: 'testng'
     }
     testCompile 'org.testng:testng:6.10'
