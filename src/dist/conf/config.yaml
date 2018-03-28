@@ -1,7 +1,10 @@
+# The port that the microservice will listen on
 port: 8080
+# OMERO server that the microservice will communicate with (as a client)
 omero:
     host: "localhost"
     port: 4064
+# Copy of the OMERO server configuration which will be reused
 omero.server:
     omero.data.dir: "/OMERO"
     omero.db.host: "localhost"
@@ -9,6 +12,8 @@ omero.server:
     omero.db.port: "5432"
     omero.db.user: "omero"
     omero.db.pass: "omero"
+    # OMERO_HOME/lib/scripts
     omero.script_repo_root: "/opt/omero/lib/scripts"
+# Redis instance that OMERO.web is using to store session information
 redis:
     uri: "redis://password@localhost:6379/1"
