@@ -1,0 +1,14 @@
+port: 8080
+omero:
+    host: "localhost"
+    port: 4064
+omero.server:
+    omero.data.dir: "/OMERO"
+    omero.db.host: "localhost"
+    omero.db.name: "omero"
+    omero.db.port: "5432"
+    omero.db.user: "omero"
+    omero.db.pass: "omero"
+    omero.script_repo_root: "/opt/omero/lib/scripts"
+redis:
+    uri: "redis://password@localhost:6379/1"

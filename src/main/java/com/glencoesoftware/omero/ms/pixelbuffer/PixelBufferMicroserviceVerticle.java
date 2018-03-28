@@ -28,6 +28,9 @@ import com.glencoesoftware.omero.ms.core.OmeroWebSessionRequestHandler;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import io.vertx.config.ConfigRetriever;
+import io.vertx.config.ConfigRetrieverOptions;
+import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
@@ -66,14 +69,46 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
     public void start(Future<Void> future) {
         log.info("Starting verticle");
 
-        if (config().getBoolean("debug")) {
+        ConfigStoreOptions store = new ConfigStoreOptions()
+                .setType("file")
+                .setFormat("yaml")
+                .setConfig(new JsonObject()
+                        .put("path", "conf/config.yaml")
+                )
+                .setOptional(true);
+        ConfigRetriever retriever = ConfigRetriever.create(
+                vertx, new ConfigRetrieverOptions()
+                        .setIncludeDefaultStores(true)
+                        .addStore(store));
+        retriever.getConfig(ar -> {
+            try {
+                deploy(ar.result(), future);
+            } catch (Exception e) {
+                future.fail(e);
+            }
+        });
+    }
+
+    /**
+     * Deploys our verticles and performs general setup that depends on
+     * configuration.
+     * @param config Current configuration
+     */
+    public void deploy(JsonObject config, Future<Void> future) {
+        log.info("Starting verticle");
+
+        if (config.getBoolean("debug")) {
             Logger root = (Logger) LoggerFactory.getLogger(
                     "com.glencoesoftware.omero.ms");
             root.setLevel(Level.DEBUG);
         }
 
-        // Set OMERO.server configuration options using system properties
-        JsonObject omeroServer = config().getJsonObject("omero.server");
+       // Set OMERO.server configuration options using system properties
+        JsonObject omeroServer = config.getJsonObject("omero.server");
+        if (omeroServer == null) {
+            throw new IllegalArgumentException(
+                    "'omero.server' block missing from configuration");
+        }
         omeroServer.forEach(entry -> {
             System.setProperty(entry.getKey(), (String) entry.getValue());
         });
@@ -84,11 +119,17 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 "classpath*:beanRefContext.xml");
 
         // Deploy our dependency verticles
-        JsonObject omero = config().getJsonObject("omero");
+        JsonObject omero = config.getJsonObject("omero");
+        if (omero == null) {
+            throw new IllegalArgumentException(
+                    "'omero' block missing from configuration");
+        }
         vertx.deployVerticle(new PixelBufferVerticle(
                 omero.getString("host"), omero.getInteger("port"), context),
-                new DeploymentOptions().setWorker(
-                        true).setMultiThreaded(true));
+                new DeploymentOptions()
+                        .setWorker(true)
+                        .setMultiThreaded(true)
+                        .setConfig(config));
 
         HttpServer server = vertx.createHttpServer();
         Router router = Router.router(vertx);
@@ -98,17 +139,21 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
 
         // OMERO session handler which picks up the session key from the
         // OMERO.web session and joins it.
-        JsonObject redis = config().getJsonObject("redis");
+        JsonObject redis = config.getJsonObject("redis");
+        if (redis == null) {
+            throw new IllegalArgumentException(
+                    "'redis' block missing from configuration");
+        }
         sessionStore = new OmeroWebRedisSessionStore(redis.getString("uri"));
         router.route().handler(
-                new OmeroWebSessionRequestHandler(sessionStore));
+                new OmeroWebSessionRequestHandler(config, sessionStore));
 
         // Pixel buffer request handlers
         router.get(
                 "/tile/:imageId/:z/:c/:t")
             .handler(this::getTile);
 
-        int port = config().getInteger("port");
+        int port = config.getInteger("port");
         log.info("Starting HTTP server *:{}", port);
         server.requestHandler(router::accept).listen(port, result -> {
             if (result.succeeded()) {

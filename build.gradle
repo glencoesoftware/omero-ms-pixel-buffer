@@ -72,9 +72,11 @@ configurations.all {
 
 dependencies {
     compile 'ch.qos.logback:logback-classic:1.1.7'
-    compile ('com.glencoesoftware.omero:omero-ms-core:0.3.0-SNAPSHOT') {
+    compile ('com.glencoesoftware.omero:omero-ms-core:0.3.0') {
         exclude group: 'org.testng', module: 'testng'
     }
+    compile 'io.vertx:vertx-config:3.5.1'
+    compile 'io.vertx:vertx-config-yaml:3.5.1'
     compile ('omero:blitz:5.4.4-ice36-b82') {
         exclude group: 'org.testng', module: 'testng'
     }
@@ -95,9 +97,16 @@ test {
   useTestNG()
 }
 
-applicationDistribution.from("$projectDir") {
-    include 'README.md'
-    include 'conf.json.example'
-    include 'logback.xml.example'
-    include 'omero-ms-pixel-buffer.service'
+distributions {
+    main {
+        contents {
+            from("$projectDir") {
+                include 'README.md'
+            }
+        }
+    }
 }
+
+applicationDefaultJvmArgs = [
+    "-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory"
+]

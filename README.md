@@ -20,51 +20,17 @@ Workflow
 The microservice server endpoint for OMERO.web relies on the following
 workflow::
 
-1. Setup of OMERO.web to use database or Redis backed sessions
+1. Setup of OMERO.web to use Redis backed sessions
+
+1. Configuring the microservice endpoint
 
 1. Ensure the microservice can communicate with your PostgreSQL instance
+
+1. Ensure the microservice has read-write access to your OMERO server binary repository
 
 1. Running the microservice endpoint for OMERO.web
 
 1. Redirecting your OMERO.web installation to use the microservice endpoint
-
-Development Installation
-========================
-
-1. Clone the repository::
-
-        git clone git@github.com:glencoesoftware/omero-ms-pixel-buffer.git
-
-1. Run the Gradle build and utilize the artifacts as required::
-
-        ./gradlew installDist
-        cd build/install
-        ...
-
-1. Log in to the OMERO.web instance you would like to develop against with
-your web browser and with the developer tools find the `sessionid` cookie
-value. This is the OMERO.web session key.
-
-1. Run single or multiple tile tests using `curl`::
-
-        curl -H 'Cookie: sessionid=<omero_web_session_key>' \
-            http://localhost:8080/tile/<image_id>/<z>/<c>/<t>/<x>/<y>/<w>/<h>
-
-Eclipse Configuration
-=====================
-
-1. Run the Gradle Eclipse task::
-
-        ./gradlew eclipse
-
-1. Configure your environment::
-
-        cp conf.json.example conf.json
-
-1. Add a new Run Configuration with a main class of `io.vertx.core.Starter`::
-
-        run "com.glencoesoftware.omero.ms.pixelbuffer.PixelBufferMicroserviceVerticle" \
-            -conf "conf.json"
 
 Build Artifacts
 ===============
@@ -82,13 +48,11 @@ running the server that your OMERO.web instance be configured to use Redis
 backed sessions and the microservice be able to communicate with your
 PostgreSQL instance. Filesystem backed sessions **are not** supported.
 
-1. Configure the application::
-
-        cp conf.json.example path/to/conf.json
+1. Configure the application by editing `conf/config.yaml`
 
 1. Start the server::
 
-        omero-ms-pixel-buffer -conf path/to/conf.json
+        omero-ms-pixel-buffer
 
 Configuring Logging
 -------------------
@@ -150,6 +114,45 @@ image region microservice server endpoint::
     location /tile/ {
         proxy_pass http://pixel_buffer_backend;
     }
+
+Development Installation
+========================
+
+1. Clone the repository::
+
+        git clone git@github.com:glencoesoftware/omero-ms-pixel-buffer.git
+
+1. Run the Gradle build and utilize the artifacts as required::
+
+        ./gradlew installDist
+        cd build/install
+        ...
+
+1. Log in to the OMERO.web instance you would like to develop against with
+your web browser and with the developer tools find the `sessionid` cookie
+value. This is the OMERO.web session key.
+
+1. Run single or multiple tile tests using `curl`::
+
+        curl -H 'Cookie: sessionid=<omero_web_session_key>' \
+            http://localhost:8080/tile/<image_id>/<z>/<c>/<t>/<x>/<y>/<w>/<h>
+
+Eclipse Configuration
+=====================
+
+1. Run the Gradle Eclipse task::
+
+        ./gradlew eclipse
+
+1. Configure your environment::
+
+         mkdir conf
+        cp src/dist/conf/config.yaml conf/
+        # Edit as appropriate
+
+1. Add a new Run Configuration with a main class of `io.vertx.core.Starter`::
+
+        run "com.glencoesoftware.omero.ms.pixelbuffer.PixelBufferMicroserviceVerticle"
 
 Running Tests
 =============
