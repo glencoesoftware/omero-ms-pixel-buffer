@@ -18,29 +18,28 @@
 
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.awt.image.DataBufferUShort;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.imageio.IIOImage;
-import javax.imageio.ImageIO;
-import javax.imageio.spi.IIORegistry;
-import javax.imageio.spi.ServiceRegistry;
-import javax.imageio.stream.ImageOutputStream;
+import loci.common.ByteArrayHandle;
+import loci.common.Location;
+import loci.formats.FormatException;
+import loci.formats.FormatTools;
+import loci.formats.ImageWriter;
+import loci.formats.MetadataTools;
+import loci.formats.meta.IMetadata;
+
+import ome.xml.model.enums.DimensionOrder;
+import ome.xml.model.enums.EnumerationException;
+import ome.xml.model.enums.PixelType;
+import ome.xml.model.primitives.PositiveInteger;
 
 import org.perf4j.StopWatch;
 import org.perf4j.slf4j.Slf4JStopWatch;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
-
-import com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriter;
-import com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriterSpi;
 
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
@@ -112,21 +111,10 @@ public class TileRequestHandler {
                             tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
                             tileCtx.resolution, tileCtx.region, format);
                     if (format != null) {
-                        ByteArrayOutputStream output =
-                                new ByteArrayOutputStream();
-                        BufferedImage image =
-                                createBufferedImage(pixels, tileByteBuffer);
-                        if (image == null) {
-                            return null;
-                        }
+                        IMetadata metadata = createMetadata(pixels);
 
-                        if (format.equals("png")) {
-                            ImageIO.write(image, "png", output);
-                            return output.toByteArray();
-                        }
-                        if (format.equals("tif")) {
-                            writeTiff(image, output);
-                            return output.toByteArray();
+                        if (format.equals("png") || format.equals("tif")) {
+                            return writeImage(format, tileByteBuffer, metadata);
                         }
                         log.error("Unknown output format: {}", format);
                         return null;
@@ -144,6 +132,47 @@ public class TileRequestHandler {
             t0.stop();
         }
         return null;
+    }
+
+
+    /**
+     * Construct a minimal IMetadata instance representing the current tile.
+     */
+    private IMetadata createMetadata(Pixels pixels) throws EnumerationException {
+      IMetadata metadata = MetadataTools.createOMEXMLMetadata();
+      metadata.setImageID("Image:0", 0);
+      metadata.setPixelsID("Pixels:0", 0);
+      metadata.setChannelID("Channel:0:0", 0, 0);
+      metadata.setPixelsSizeX(new PositiveInteger(tileCtx.region.getWidth()), 0);
+      metadata.setPixelsSizeY(new PositiveInteger(tileCtx.region.getHeight()), 0);
+      metadata.setPixelsSizeZ(new PositiveInteger(1), 0);
+      metadata.setPixelsSizeC(new PositiveInteger(1), 0);
+      metadata.setPixelsSizeT(new PositiveInteger(1), 0);
+      metadata.setPixelsDimensionOrder(DimensionOrder.XYCZT, 0);
+      metadata.setPixelsType(PixelType.fromString(pixels.getPixelsType().getValue().toString()), 0);
+      return metadata;
+    }
+
+    /**
+     * Write the tile specified by the given buffer and IMetadata to memory.
+     * The output format is determined by the extension (e.g. "png", "tif")
+     */
+    private byte[] writeImage(String extension, ByteBuffer tileBuffer, IMetadata metadata)
+      throws FormatException, IOException
+    {
+      String id = System.currentTimeMillis() + "." + extension;
+      ByteArrayHandle handle = new ByteArrayHandle();
+      try (ImageWriter writer = new ImageWriter()) {
+        writer.setMetadataRetrieve(metadata);
+        Location.mapFile(id, handle);
+        writer.setId(id);
+        writer.saveBytes(0, tileBuffer.array());
+        return handle.getBytes();
+      }
+      finally {
+        Location.mapFile(id, null);
+        handle.close();
+      }
     }
 
     protected PixelBuffer getPixelBuffer(Pixels pixels)
@@ -184,64 +213,4 @@ public class TileRequestHandler {
         }
     }
 
-    /**
-     * Create a buffered image for a given tile
-     * @param pixels metadata to use when creating the buffered image
-     * @param tileByteBuffer data to create the buffered image with
-     * @return See above.
-     */
-    private BufferedImage createBufferedImage(
-            Pixels pixels, ByteBuffer tileByteBuffer) {
-        BufferedImage image = null;
-        String pixelsType = (String) unwrap(pixels.getPixelsType().getValue());
-        if (pixelsType.endsWith("int8")) {
-            log.debug(
-                "Mapping pixels type {} to BufferedImage.TYPE_BYTE_GRAY",
-                pixelsType);
-            image = new BufferedImage(
-                    tileCtx.region.getWidth(), tileCtx.region.getHeight(),
-                    BufferedImage.TYPE_BYTE_GRAY);
-            byte[] dataBuffer = ((DataBufferByte) image.getRaster()
-                    .getDataBuffer()).getData();
-            tileByteBuffer.get(dataBuffer);
-            return image;
-        }
-        if (pixelsType.endsWith("int16")) {
-            log.debug(
-                "Mapping pixels type {} to BufferedImage.TYPE_USHORT_GRAY",
-                pixelsType);
-            image = new BufferedImage(
-                    tileCtx.region.getWidth(), tileCtx.region.getHeight(),
-                    BufferedImage.TYPE_USHORT_GRAY);
-            short[] dataBuffer = ((DataBufferUShort) image.getRaster()
-                    .getDataBuffer()).getData();
-            tileByteBuffer.asShortBuffer().get(dataBuffer);
-            return image;
-        }
-        log.error("Unsupported pixel type: {}", pixelsType);
-        return null;
-    }
-
-    /**
-     * Writes a buffered image to a TIFF output stream.
-     * @param image buffered image to write out as a TIFF
-     * @param output output stream to write to
-     * @throws IOException If there is an error writing to
-     * <code>output</code>.
-     */
-    private void writeTiff(BufferedImage image, OutputStream output)
-            throws IOException {
-        try (ImageOutputStream ios =
-                ImageIO.createImageOutputStream(output)) {
-            IIORegistry registry = IIORegistry.getDefaultInstance();
-            registry.registerServiceProviders(
-                    ServiceRegistry.lookupProviders(
-                            TIFFImageWriterSpi.class));
-            TIFFImageWriterSpi spi = registry.getServiceProviderByClass(
-                    TIFFImageWriterSpi.class);
-            TIFFImageWriter writer = new TIFFImageWriter(spi);
-            writer.setOutput(ios);
-            writer.write(null, new IIOImage(image, null, null), null);
-        }
-    }
 }
