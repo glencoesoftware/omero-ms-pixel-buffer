@@ -169,7 +169,13 @@ public class TileRequestHandler {
         Location.mapFile(id, handle);
         writer.setId(id);
         writer.saveBytes(0, tileBuffer.array());
-        return handle.getBytes();
+
+        // trim byte array to written length (not backing array length)
+        ByteBuffer bytes = handle.getByteBuffer();
+        byte[] file = new byte[(int) handle.length()];
+        bytes.position(0);
+        bytes.get(file);
+        return file;
       }
       finally {
         Location.mapFile(id, null);
