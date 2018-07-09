@@ -135,7 +135,15 @@ value. This is the OMERO.web session key.
 1. Run single or multiple tile tests using `curl`::
 
         curl -H 'Cookie: sessionid=<omero_web_session_key>' \
-            http://localhost:8080/tile/<image_id>/<z>/<c>/<t>/<x>/<y>/<w>/<h>
+            http://localhost:8080/tile/<image_id>/<z>/<c>/<t>?x=<x>&y=<y>&w=<w>&h=<h>&format=<format>&filename=<filename>
+
+Valid formats, if missing the format will be raw pixels, include:
+
+ * `png`
+ * `tif`
+
+If `filename` is missing, a suitable default based on the query string
+will be used.
 
 Eclipse Configuration
 =====================
