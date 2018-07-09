@@ -72,12 +72,12 @@ configurations.all {
 
 dependencies {
     compile 'ch.qos.logback:logback-classic:1.1.7'
-    compile ('com.glencoesoftware.omero:omero-ms-core:0.3.0') {
+    compile ('com.glencoesoftware.omero:omero-ms-core:0.3.1') {
         exclude group: 'org.testng', module: 'testng'
     }
     compile 'io.vertx:vertx-config:3.5.1'
     compile 'io.vertx:vertx-config-yaml:3.5.1'
-    compile ('omero:blitz:5.4.4-ice36-b82') {
+    compile ('omero:blitz:5.4.6-ice36-b87') {
         exclude group: 'org.testng', module: 'testng'
     }
     testCompile 'org.testng:testng:6.10'
