@@ -197,10 +197,10 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 }
                 byte[] tile = result.result().body();
                 String contentType = "application/octet-stream";
-                if (tileCtx.format.equals("png")) {
+                if ("png".equals(tileCtx.format)) {
                     contentType = "image/png";
                 }
-                if (tileCtx.format.equals("tif")) {
+                if ("tif".equals(tileCtx.format)) {
                     contentType = "image/tiff";
                 }
                 response.headers().set(
