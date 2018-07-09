@@ -95,15 +95,9 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
      * @param config Current configuration
      */
     public void deploy(JsonObject config, Future<Void> future) {
-        log.info("Starting verticle");
+        log.info("Deploying verticle");
 
-        if (config.getBoolean("debug")) {
-            Logger root = (Logger) LoggerFactory.getLogger(
-                    "com.glencoesoftware.omero.ms");
-            root.setLevel(Level.DEBUG);
-        }
-
-       // Set OMERO.server configuration options using system properties
+        // Set OMERO.server configuration options using system properties
         JsonObject omeroServer = config.getJsonObject("omero.server");
         if (omeroServer == null) {
             throw new IllegalArgumentException(
