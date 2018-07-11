@@ -139,20 +139,20 @@ public class TileRequestHandler {
      * Construct a minimal IMetadata instance representing the current tile.
      */
     private IMetadata createMetadata(Pixels pixels) throws EnumerationException {
-      IMetadata metadata = MetadataTools.createOMEXMLMetadata();
-      metadata.setImageID("Image:0", 0);
-      metadata.setPixelsID("Pixels:0", 0);
-      metadata.setChannelID("Channel:0:0", 0, 0);
-      metadata.setChannelSamplesPerPixel(new PositiveInteger(1), 0, 0);
-      metadata.setPixelsBigEndian(true, 0);
-      metadata.setPixelsSizeX(new PositiveInteger(tileCtx.region.getWidth()), 0);
-      metadata.setPixelsSizeY(new PositiveInteger(tileCtx.region.getHeight()), 0);
-      metadata.setPixelsSizeZ(new PositiveInteger(1), 0);
-      metadata.setPixelsSizeC(new PositiveInteger(1), 0);
-      metadata.setPixelsSizeT(new PositiveInteger(1), 0);
-      metadata.setPixelsDimensionOrder(DimensionOrder.XYCZT, 0);
-      metadata.setPixelsType(PixelType.fromString(pixels.getPixelsType().getValue().getValue()), 0);
-      return metadata;
+        IMetadata metadata = MetadataTools.createOMEXMLMetadata();
+        metadata.setImageID("Image:0", 0);
+        metadata.setPixelsID("Pixels:0", 0);
+        metadata.setChannelID("Channel:0:0", 0, 0);
+        metadata.setChannelSamplesPerPixel(new PositiveInteger(1), 0, 0);
+        metadata.setPixelsBigEndian(true, 0);
+        metadata.setPixelsSizeX(new PositiveInteger(tileCtx.region.getWidth()), 0);
+        metadata.setPixelsSizeY(new PositiveInteger(tileCtx.region.getHeight()), 0);
+        metadata.setPixelsSizeZ(new PositiveInteger(1), 0);
+        metadata.setPixelsSizeC(new PositiveInteger(1), 0);
+        metadata.setPixelsSizeT(new PositiveInteger(1), 0);
+        metadata.setPixelsDimensionOrder(DimensionOrder.XYCZT, 0);
+        metadata.setPixelsType(PixelType.fromString(pixels.getPixelsType().getValue().getValue()), 0);
+        return metadata;
     }
 
     /**
@@ -160,27 +160,25 @@ public class TileRequestHandler {
      * The output format is determined by the extension (e.g. "png", "tif")
      */
     private byte[] writeImage(String extension, ByteBuffer tileBuffer, IMetadata metadata)
-      throws FormatException, IOException
-    {
-      String id = System.currentTimeMillis() + "." + extension;
-      ByteArrayHandle handle = new ByteArrayHandle();
-      try (ImageWriter writer = new ImageWriter()) {
-        writer.setMetadataRetrieve(metadata);
-        Location.mapFile(id, handle);
-        writer.setId(id);
-        writer.saveBytes(0, tileBuffer.array());
+            throws FormatException, IOException {
+        String id = System.currentTimeMillis() + "." + extension;
+        ByteArrayHandle handle = new ByteArrayHandle();
+        try (ImageWriter writer = new ImageWriter()) {
+            writer.setMetadataRetrieve(metadata);
+            Location.mapFile(id, handle);
+            writer.setId(id);
+            writer.saveBytes(0, tileBuffer.array());
 
-        // trim byte array to written length (not backing array length)
-        ByteBuffer bytes = handle.getByteBuffer();
-        byte[] file = new byte[(int) handle.length()];
-        bytes.position(0);
-        bytes.get(file);
-        return file;
-      }
-      finally {
-        Location.mapFile(id, null);
-        handle.close();
-      }
+            // trim byte array to written length (not backing array length)
+            ByteBuffer bytes = handle.getByteBuffer();
+            byte[] file = new byte[(int) handle.length()];
+            bytes.position(0);
+            bytes.get(file);
+            return file;
+        } finally {
+            Location.mapFile(id, null);
+            handle.close();
+        }
     }
 
     protected PixelBuffer getPixelBuffer(Pixels pixels)
