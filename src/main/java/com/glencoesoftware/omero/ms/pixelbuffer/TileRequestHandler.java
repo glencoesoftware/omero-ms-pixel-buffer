@@ -20,7 +20,6 @@ package com.glencoesoftware.omero.ms.pixelbuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,6 +34,7 @@ import ome.xml.model.enums.DimensionOrder;
 import ome.xml.model.enums.EnumerationException;
 import ome.xml.model.enums.PixelType;
 import ome.xml.model.primitives.PositiveInteger;
+import omeis.providers.re.data.RegionDef;
 
 import org.perf4j.StopWatch;
 import org.perf4j.slf4j.Slf4JStopWatch;
@@ -88,38 +88,40 @@ public class TileRequestHandler {
             if (pixels != null) {
                 try (PixelBuffer pixelBuffer = getPixelBuffer(pixels)) {
                     String format = tileCtx.format;
+                    RegionDef region = tileCtx.region;
                     if (tileCtx.resolution != null) {
                         pixelBuffer.setResolutionLevel(tileCtx.resolution);
                     }
-                    if (tileCtx.region.getWidth() == 0) {
-                        tileCtx.region.setWidth(pixels.getSizeX().getValue());
+                    if (region.getWidth() == 0) {
+                        region.setWidth(pixels.getSizeX().getValue());
                     }
-                    if (tileCtx.region.getHeight() == 0) {
-                        tileCtx.region.setHeight(pixels.getSizeY().getValue());
+                    if (region.getHeight() == 0) {
+                        region.setHeight(pixels.getSizeY().getValue());
                     }
-                    ByteBuffer tileByteBuffer = pixelBuffer.getTile(
+                    int width = region.getWidth();
+                    int height = region.getHeight();
+                    int bytesPerPixel =
+                            pixels.getPixelsType().getBitSize().getValue() / 8;
+                    int tileSize = width * height * bytesPerPixel;
+                    byte[] tile = new byte[tileSize];
+                    pixelBuffer.getTileDirect(
                         tileCtx.z, tileCtx.c, tileCtx.t,
-                        tileCtx.region.getX(), tileCtx.region.getY(),
-                        tileCtx.region.getWidth(), tileCtx.region.getHeight())
-                            .getData();
+                        region.getX(), region.getY(), width, height, tile);
 
                     log.debug(
                             "Image:{}, z: {}, c: {}, t: {}, resolution: {}, " +
                             "region: {}, format: {}",
                             tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
-                            tileCtx.resolution, tileCtx.region, format);
+                            tileCtx.resolution, region, format);
                     if (format != null) {
-                        IMetadata metadata =
-                                createMetadata(pixels, tileByteBuffer);
+                        IMetadata metadata = createMetadata(pixels);
 
                         if (format.equals("png") || format.equals("tif")) {
-                            return writeImage(format, tileByteBuffer, metadata);
+                            return writeImage(format, tile, metadata);
                         }
                         log.error("Unknown output format: {}", format);
                         return null;
                     }
-                    byte[] tile = new byte[tileByteBuffer.capacity()];
-                    tileByteBuffer.get(tile);
                     return tile;
                 }
             } else {
@@ -137,15 +139,14 @@ public class TileRequestHandler {
     /**
      * Construct a minimal IMetadata instance representing the current tile.
      */
-    private IMetadata createMetadata(Pixels pixels, ByteBuffer tileByteBuffer)
+    private IMetadata createMetadata(Pixels pixels)
             throws EnumerationException {
         IMetadata metadata = MetadataTools.createOMEXMLMetadata();
         metadata.setImageID("Image:0", 0);
         metadata.setPixelsID("Pixels:0", 0);
         metadata.setChannelID("Channel:0:0", 0, 0);
         metadata.setChannelSamplesPerPixel(new PositiveInteger(1), 0, 0);
-        metadata.setPixelsBigEndian(
-                tileByteBuffer.order() == ByteOrder.BIG_ENDIAN, 0);
+        metadata.setPixelsBigEndian(true, 0);
         metadata.setPixelsSizeX(
                 new PositiveInteger(tileCtx.region.getWidth()), 0);
         metadata.setPixelsSizeY(
@@ -163,7 +164,7 @@ public class TileRequestHandler {
      * Write the tile specified by the given buffer and IMetadata to memory.
      * The output format is determined by the extension (e.g. "png", "tif")
      */
-    private byte[] writeImage(String extension, ByteBuffer tileBuffer, IMetadata metadata)
+    private byte[] writeImage(String extension, byte[] tile, IMetadata metadata)
             throws FormatException, IOException {
         String id = System.currentTimeMillis() + "." + extension;
         ByteArrayHandle handle = new ByteArrayHandle();
@@ -171,7 +172,7 @@ public class TileRequestHandler {
             writer.setMetadataRetrieve(metadata);
             Location.mapFile(id, handle);
             writer.setId(id);
-            writer.saveBytes(0, tileBuffer.array());
+            writer.saveBytes(0, tile);
 
             // trim byte array to written length (not backing array length)
             ByteBuffer bytes = handle.getByteBuffer();
