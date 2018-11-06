@@ -20,13 +20,13 @@ package com.glencoesoftware.omero.ms.pixelbuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 
 import loci.common.ByteArrayHandle;
 import loci.common.Location;
 import loci.formats.FormatException;
-import loci.formats.FormatTools;
 import loci.formats.ImageWriter;
 import loci.formats.MetadataTools;
 import loci.formats.meta.IMetadata;
@@ -49,8 +49,6 @@ import omero.model.Image;
 import omero.model.Pixels;
 import omero.sys.ParametersI;
 import omero.util.IceMapper;
-
-import static omero.rtypes.unwrap;
 
 public class TileRequestHandler {
 
@@ -111,7 +109,8 @@ public class TileRequestHandler {
                             tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
                             tileCtx.resolution, tileCtx.region, format);
                     if (format != null) {
-                        IMetadata metadata = createMetadata(pixels);
+                        IMetadata metadata =
+                                createMetadata(pixels, tileByteBuffer);
 
                         if (format.equals("png") || format.equals("tif")) {
                             return writeImage(format, tileByteBuffer, metadata);
@@ -138,20 +137,25 @@ public class TileRequestHandler {
     /**
      * Construct a minimal IMetadata instance representing the current tile.
      */
-    private IMetadata createMetadata(Pixels pixels) throws EnumerationException {
+    private IMetadata createMetadata(Pixels pixels, ByteBuffer tileByteBuffer)
+            throws EnumerationException {
         IMetadata metadata = MetadataTools.createOMEXMLMetadata();
         metadata.setImageID("Image:0", 0);
         metadata.setPixelsID("Pixels:0", 0);
         metadata.setChannelID("Channel:0:0", 0, 0);
         metadata.setChannelSamplesPerPixel(new PositiveInteger(1), 0, 0);
-        metadata.setPixelsBigEndian(true, 0);
-        metadata.setPixelsSizeX(new PositiveInteger(tileCtx.region.getWidth()), 0);
-        metadata.setPixelsSizeY(new PositiveInteger(tileCtx.region.getHeight()), 0);
+        metadata.setPixelsBigEndian(
+                tileByteBuffer.order() == ByteOrder.BIG_ENDIAN, 0);
+        metadata.setPixelsSizeX(
+                new PositiveInteger(tileCtx.region.getWidth()), 0);
+        metadata.setPixelsSizeY(
+                new PositiveInteger(tileCtx.region.getHeight()), 0);
         metadata.setPixelsSizeZ(new PositiveInteger(1), 0);
         metadata.setPixelsSizeC(new PositiveInteger(1), 0);
         metadata.setPixelsSizeT(new PositiveInteger(1), 0);
         metadata.setPixelsDimensionOrder(DimensionOrder.XYCZT, 0);
-        metadata.setPixelsType(PixelType.fromString(pixels.getPixelsType().getValue().getValue()), 0);
+        metadata.setPixelsType(PixelType.fromString(
+                pixels.getPixelsType().getValue().getValue()), 0);
         return metadata;
     }
 
