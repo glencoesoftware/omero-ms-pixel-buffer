@@ -14,6 +14,12 @@ omero.server:
     omero.db.pass: "omero"
     # OMERO_HOME/lib/scripts
     omero.script_repo_root: "/opt/omero/lib/scripts"
-# Redis instance that OMERO.web is using to store session information
-redis:
-    uri: "redis://password@localhost:6379/1"
+# Information about the session store.
+session-store:
+    #type is either "postgres" or "redis"
+    type: "postgres"
+    #synchronicity is either "sync" or "async"
+    synchronicity: "async"
+    #uri for either postgres db or redis
+    uri: "jdbc:postgresql://localhost:5432/omero_database?user=omero&password=omero"
+#    uri: "redis://password@localhost:6379/1"
