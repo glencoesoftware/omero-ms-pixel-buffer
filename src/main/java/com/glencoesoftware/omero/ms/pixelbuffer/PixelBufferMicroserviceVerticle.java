@@ -155,6 +155,9 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         router.route().handler(
                 new OmeroWebSessionRequestHandler(config, sessionStore, vertx));
 
+        // Get PixelBuffer Microservice Information
+        router.options().handler(this::getMicroserviceDetails);
+
         // Pixel buffer request handlers
         router.get(
                 "/tile/:imageId/:z/:c/:t")
@@ -178,6 +181,19 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
     @Override
     public void stop() throws Exception {
         sessionStore.close();
+    }
+
+    /**
+     * Get information about microservice.
+     * Confirms that this is a microservice
+     * @param event Current routing context.
+     */
+    private void getMicroserviceDetails(RoutingContext event) {
+        log.info("Getting Microservice Details");
+        JsonObject resData = new JsonObject()
+                        .put("is_microservice", "true")
+                        .put("microservice_name", "PixelBufferMicroservice");
+        event.response().end(resData.encodePrettily());
     }
 
     /**
