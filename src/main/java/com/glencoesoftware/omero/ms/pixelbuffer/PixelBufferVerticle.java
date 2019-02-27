@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.glencoesoftware.omero.ms.core.OmeroRequest;
 
 import Glacier2.CannotCreateSessionException;
 import Glacier2.PermissionDeniedException;
@@ -95,11 +94,13 @@ public class PixelBufferVerticle extends AbstractVerticle {
         log.debug("Load tile with data: {}", message.body());
             log.debug("Connecting to the server: {}, {}, {}",
                       host, port, tileCtx.omeroSessionKey);
-            try (OmeroRequest request = new OmeroRequest(
-                     host, port, tileCtx.omeroSessionKey))
-            {
-                byte[] tile = request.execute(
-                        new TileRequestHandler(context, tileCtx)::getTile);
+
+            new TileRequestHandler(context, tileCtx, vertx).getTile(tileCtx.omeroSessionKey, tileCtx.imageId)
+            .whenComplete((tile, t) -> {
+                if(t != null) {
+                    //TODO: Do something
+                }
+                log.info("After TileRequestHandler");
                 if (tile == null) {
                     message.fail(
                             404, "Cannot find Image:" + tileCtx.imageId);
@@ -118,19 +119,7 @@ public class PixelBufferVerticle extends AbstractVerticle {
                     );
                     message.reply(tile, deliveryOptions);
                 }
-            } catch (PermissionDeniedException
-                    | CannotCreateSessionException e) {
-                String v = "Permission denied";
-                log.debug(v);
-                message.fail(403, v);
-            } catch (IllegalArgumentException e) {
-                log.debug("Illegal argument received while retrieving tile", e);
-                message.fail(400, e.getMessage());
-            } catch (Exception e) {
-                String v = "Exception while retrieving tile";
-                log.error(v, e);
-                message.fail(500, v);
-            }
+            });
     }
 
 }
