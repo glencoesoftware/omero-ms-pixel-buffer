@@ -25,6 +25,7 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import loci.common.ByteArrayHandle;
 import loci.common.Location;
@@ -45,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
@@ -61,6 +63,8 @@ public class TileRequestHandler {
             LoggerFactory.getLogger(TileRequestHandler.class);
 
     private static final String GET_PIXELS_DESCRIPTION_EVENT = "omero.get_pixels_description";
+
+    private static final String GET_PIXELS_EVENT = "omero.get_pixels";
 
     /** OMERO server Spring application context. */
     private final ApplicationContext context;
@@ -93,55 +97,58 @@ public class TileRequestHandler {
         StopWatch t0 = new Slf4JStopWatch("getTile");
         CompletableFuture<byte[]> promise = new CompletableFuture<byte[]>();
         getPixels(omeroSessionKey, tileCtx.imageId)
-        .thenAccept(pixels -> {
-            log.info("In getPixels callback");
-            if (pixels != null) {
-                try (PixelBuffer pixelBuffer = pixelsService.getPixelBuffer(pixels, false)) {
-                    String format = tileCtx.format;
-                    RegionDef region = tileCtx.region;
-                    if (tileCtx.resolution != null) {
-                        pixelBuffer.setResolutionLevel(tileCtx.resolution);
-                    }
-                    if (region.getWidth() == 0) {
-                        region.setWidth(pixels.getSizeX());
-                    }
-                    if (region.getHeight() == 0) {
-                        region.setHeight(pixels.getSizeY());
-                    }
-                    int width = region.getWidth();
-                    int height = region.getHeight();
-                    int bytesPerPixel =
-                            pixels.getPixelsType().getBitSize() / 8;
-                    int tileSize = width * height * bytesPerPixel;
-                    byte[] tile = new byte[tileSize];
-                    pixelBuffer.getTileDirect(
-                        tileCtx.z, tileCtx.c, tileCtx.t,
-                        region.getX(), region.getY(), width, height, tile);
-
-                    log.debug(
-                            "Image:{}, z: {}, c: {}, t: {}, resolution: {}, " +
-                            "region: {}, format: {}",
-                            tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
-                            tileCtx.resolution, region, format);
-                    if (format != null) {
-                        IMetadata metadata = createMetadata(pixels);
-
-                        if (format.equals("png") || format.equals("tif")) {
-                            promise.complete(writeImage(format, tile, metadata));
-                        } else {
-                            log.error("Unknown output format: {}", format);
-                            promise.complete(null);
+        .thenAccept(new Consumer<Pixels>() {
+            @Override
+            public void accept(Pixels pixels) {
+                log.info("In getPixels callback");
+                if (pixels != null) {
+                    try (PixelBuffer pixelBuffer = pixelsService.getPixelBuffer(pixels, false)) {
+                        String format = tileCtx.format;
+                        RegionDef region = tileCtx.region;
+                        if (tileCtx.resolution != null) {
+                            pixelBuffer.setResolutionLevel(tileCtx.resolution);
                         }
+                        if (region.getWidth() == 0) {
+                            region.setWidth(pixels.getSizeX());
+                        }
+                        if (region.getHeight() == 0) {
+                            region.setHeight(pixels.getSizeY());
+                        }
+                        int width = region.getWidth();
+                        int height = region.getHeight();
+                        int bytesPerPixel =
+                                pixels.getPixelsType().getBitSize() / 8;
+                        int tileSize = width * height * bytesPerPixel;
+                        byte[] tile = new byte[tileSize];
+                        pixelBuffer.getTileDirect(
+                            tileCtx.z, tileCtx.c, tileCtx.t,
+                            region.getX(), region.getY(), width, height, tile);
+
+                        log.debug(
+                                "Image:{}, z: {}, c: {}, t: {}, resolution: {}, " +
+                                "region: {}, format: {}",
+                                tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
+                                tileCtx.resolution, region, format);
+                        if (format != null) {
+                            IMetadata metadata = createMetadata(pixels);
+
+                            if (format.equals("png") || format.equals("tif")) {
+                                promise.complete(writeImage(format, tile, metadata));
+                            } else {
+                                log.error("Unknown output format: {}", format);
+                                promise.complete(null);
+                            }
+                        }
+                        promise.complete(tile);
                     }
-                    promise.complete(tile);
+                    catch(IOException | EnumerationException
+                            | FormatException e) {
+                        promise.completeExceptionally(e);
+                    }
+                } else {
+                    log.debug("Cannot find Image:{}", tileCtx.imageId);
+                    promise.complete(null);
                 }
-                catch(IOException | EnumerationException
-                        | FormatException e) {
-                    promise.completeExceptionally(e);
-                }
-            } else {
-                log.debug("Cannot find Image:{}", tileCtx.imageId);
-                promise.complete(null);
             }
         });
         return promise;
@@ -206,24 +213,29 @@ public class TileRequestHandler {
         data.put("sessionKey", omeroSessionKey);
         data.put("imageId", imageId);
         vertx.eventBus().<byte[]>send(
-                GET_PIXELS_DESCRIPTION_EVENT, data, result -> {
-            log.info("In backbone response");
-            String s = "";
-            try {
-                if (result.failed()) {
-                    promise.completeExceptionally(result.cause());
-                    return;
+                GET_PIXELS_EVENT, data, new Handler<AsyncResult<Message<byte[]>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<byte[]>> result) {
+
+                    log.info("In backbone response");
+                    String s = "";
+                    try {
+                        if (result.failed()) {
+                            promise.completeExceptionally(result.cause());
+                            return;
+                        }
+                        ByteArrayInputStream bais =
+                                new ByteArrayInputStream(result.result().body());
+                        ObjectInputStream ois = new ObjectInputStream(bais);
+                        Pixels pixels = (Pixels) ois.readObject();
+                        promise.complete(pixels);
+                    } catch (IOException | ClassNotFoundException e) {
+                        promise.completeExceptionally(e);
+                        log.error("Exception while decoding object in response", e);
+                    }
                 }
-                ByteArrayInputStream bais =
-                        new ByteArrayInputStream(result.result().body());
-                ObjectInputStream ois = new ObjectInputStream(bais);
-                Pixels pixels = (Pixels) ois.readObject();
-                promise.complete(pixels);
-            } catch (IOException | ClassNotFoundException e) {
-                promise.completeExceptionally(e);
-                log.error("Exception while decoding object in response", e);
             }
-        });
+        );
 
         return promise;
     }

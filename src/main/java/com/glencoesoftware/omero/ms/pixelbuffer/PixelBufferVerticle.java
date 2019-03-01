@@ -20,7 +20,10 @@ package com.glencoesoftware.omero.ms.pixelbuffer;
 
 
 import java.util.Optional;
+import java.util.function.BiConsumer;
 
+import org.perf4j.StopWatch;
+import org.perf4j.slf4j.Slf4JStopWatch;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
@@ -31,6 +34,7 @@ import Glacier2.PermissionDeniedException;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.ReplyException;
 
 /**
  * OMERO thumbnail provider worker verticle. This verticle is designed to be
@@ -81,6 +85,7 @@ public class PixelBufferVerticle extends AbstractVerticle {
     }
 
     private void getTile(Message<String> message) {
+        StopWatch t0 = new Slf4JStopWatch("getTile");
         ObjectMapper mapper = new ObjectMapper();
         TileCtx tileCtx;
         try {
@@ -89,19 +94,30 @@ public class PixelBufferVerticle extends AbstractVerticle {
             String v = "Illegal tile context";
             log.error(v + ": {}", message.body(), e);
             message.fail(400, v);
+            t0.stop();
             return;
         }
         log.debug("Load tile with data: {}", message.body());
             log.debug("Connecting to the server: {}, {}, {}",
                       host, port, tileCtx.omeroSessionKey);
 
-            new TileRequestHandler(context, tileCtx, vertx).getTile(tileCtx.omeroSessionKey, tileCtx.imageId)
-            .whenComplete((tile, t) -> {
-                if(t != null) {
-                    //TODO: Do something
-                }
-                log.info("After TileRequestHandler");
-                if (tile == null) {
+        new TileRequestHandler(context, tileCtx, vertx).getTile(tileCtx.omeroSessionKey, tileCtx.imageId)
+        .whenComplete(new BiConsumer<byte[], Throwable>() {
+            @Override
+            public void accept(byte[] tile, Throwable t) {
+                if (t != null) {
+                    if (t instanceof ReplyException) {
+                        // Downstream event handling failure, propagate it
+                        t0.stop();
+                        message.fail(
+                            ((ReplyException) t).failureCode(), t.getMessage());
+                    } else {
+                        String s = "Internal error";
+                        log.error(s, t);
+                        t0.stop();
+                        message.fail(500, s);
+                    }
+                } else if (tile == null) {
                     message.fail(
                             404, "Cannot find Image:" + tileCtx.imageId);
                 } else {
@@ -119,7 +135,8 @@ public class PixelBufferVerticle extends AbstractVerticle {
                     );
                     message.reply(tile, deliveryOptions);
                 }
-            });
+            };
+        });
     }
 
 }
