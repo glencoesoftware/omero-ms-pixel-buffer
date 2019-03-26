@@ -173,6 +173,10 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 "/tile/:imageId/:z/:c/:t")
             .handler(this::getTile);
 
+        router.get(
+                "/annotation/:annotationId")
+            .handler(this::getFileAnnotation);
+
         int port = config.getInteger("port");
         log.info("Starting HTTP server *:{}", port);
         server.requestHandler(router::accept).listen(port,
@@ -233,45 +237,79 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         final HttpServerResponse response = event.response();
 
         vertx.eventBus().<byte[]>send(
-                PixelBufferVerticle.GET_TILE_EVENT,
-                Json.encode(tileCtx), new Handler<AsyncResult<Message<byte[]>>>() {
-                    @Override
-                    public void handle(AsyncResult<Message<byte[]>> result) {
-                        try {
-                            if (result.failed()) {
-                                Throwable t = result.cause();
-                                int statusCode = 404;
-                                if (t instanceof ReplyException) {
-                                    statusCode = ((ReplyException) t).failureCode();
-                                }
-                                response.setStatusCode(statusCode);
-                                return;
+            PixelBufferVerticle.GET_TILE_EVENT,
+            Json.encode(tileCtx), new Handler<AsyncResult<Message<byte[]>>>() {
+                @Override
+                public void handle(AsyncResult<Message<byte[]>> result) {
+                    try {
+                        if (result.failed()) {
+                            Throwable t = result.cause();
+                            int statusCode = 404;
+                            if (t instanceof ReplyException) {
+                                statusCode = ((ReplyException) t).failureCode();
                             }
-                            byte[] tile = result.result().body();
-                            String contentType = "application/octet-stream";
-                            if ("png".equals(tileCtx.format)) {
-                                contentType = "image/png";
-                            }
-                            if ("tif".equals(tileCtx.format)) {
-                                contentType = "image/tiff";
-                            }
-                            response.headers().set(
-                                    "Content-Type", contentType);
-                            response.headers().set(
-                                    "Content-Length",
-                                    String.valueOf(tile.length));
-                            response.headers().set(
-                                    "Content-Disposition",
-                                    String.format(
-                                            "attachment; filename=\"%s\"",
-                                            result.result().headers().get("filename")));
-                            response.write(Buffer.buffer(tile));
-                        } finally {
-                            response.end();
-                            log.debug("Response ended");
+                            response.setStatusCode(statusCode);
+                            return;
                         }
+                        byte[] tile = result.result().body();
+                        String contentType = "application/octet-stream";
+                        if ("png".equals(tileCtx.format)) {
+                            contentType = "image/png";
+                        }
+                        if ("tif".equals(tileCtx.format)) {
+                            contentType = "image/tiff";
+                        }
+                        response.headers().set(
+                                "Content-Type", contentType);
+                        response.headers().set(
+                                "Content-Length",
+                                String.valueOf(tile.length));
+                        response.headers().set(
+                                "Content-Disposition",
+                                String.format(
+                                        "attachment; filename=\"%s\"",
+                                        result.result().headers().get("filename")));
+                        response.write(Buffer.buffer(tile));
+                    } finally {
+                        response.end();
+                        log.debug("Response ended");
+                    }
+                }
+            }
+        );
+    }
+
+    private void getFileAnnotation(RoutingContext event) {
+        log.info("Get File Annotation");
+        HttpServerRequest request = event.request();
+        HttpServerResponse response = event.response();
+        String sessionKey = event.get("omero.session_key");
+        JsonObject data = new JsonObject();
+        data.put("sessionKey", sessionKey);
+        data.put("annotationId", Long.parseLong(request.getParam("annotationId")));
+        vertx.eventBus().<String>send(
+                PixelBufferVerticle.GET_FILE_ANNOTATION_EVENT,
+                data.toString(), new Handler<AsyncResult<Message<String>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<String>> result) {
+                        if (result.failed()) {
+                            log.error(result.cause().getMessage());
+                            response.setStatusCode(404);
+                            response.end("Could not get annotation "
+                                        + request.getParam("annotationId"));
+                            return;
+                        }
+                        String filePath = result.result().body();
+                        log.info(filePath);
+                        String[] pathComponents = filePath.split("/");
+                        String fileName = pathComponents[pathComponents.length -1];
+                        response.headers().set("Content-Type", "application/octet-stream");
+                        response.headers().set("Content-Disposition",
+                                "attachment; filename=\"" + fileName + "\"");
+                        response.sendFile(filePath);
                     }
                 });
+
     }
 
 }

@@ -19,6 +19,9 @@
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 
@@ -32,9 +35,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import Glacier2.CannotCreateSessionException;
 import Glacier2.PermissionDeniedException;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.ReplyException;
+import io.vertx.core.json.JsonObject;
+import ome.model.annotations.FileAnnotation;
+import ome.model.core.OriginalFile;
 
 /**
  * OMERO thumbnail provider worker verticle. This verticle is designed to be
@@ -51,6 +58,12 @@ public class PixelBufferVerticle extends AbstractVerticle {
 
     public static final String GET_TILE_EVENT =
             "omero.pixel_buffer.get_tile";
+
+    public static final String GET_FILE_ANNOTATION_EVENT =
+            "omero.pixel_buffer.get_file_annotation";
+
+    private static final String GET_OBJECT_EVENT =
+            "omero.get_object";
 
     /** OMERO server host */
     private final String host;
@@ -82,6 +95,9 @@ public class PixelBufferVerticle extends AbstractVerticle {
 
         vertx.eventBus().<String>consumer(
                 GET_TILE_EVENT, this::getTile);
+
+        vertx.eventBus().<String>consumer(
+                GET_FILE_ANNOTATION_EVENT, this::getFileAnnotation);
     }
 
     private void getTile(Message<String> message) {
@@ -139,4 +155,62 @@ public class PixelBufferVerticle extends AbstractVerticle {
         });
     }
 
+    private <T> T deserialize(AsyncResult<Message<byte[]>> result)
+            throws IOException, ClassNotFoundException {
+        ByteArrayInputStream bais =
+                new ByteArrayInputStream(result.result().body());
+        ObjectInputStream ois = new ObjectInputStream(bais);
+        return (T) ois.readObject();
+    }
+
+    private void getFileAnnotation(Message<String> message) {
+        JsonObject messageBody = new JsonObject(message.body());
+        String sessionKey = messageBody.getString("sessionKey");
+        Long annotationId = messageBody.getLong("annotationId");
+        final JsonObject data = new JsonObject();
+        data.put("sessionKey", sessionKey);
+        data.put("type", "FileAnnotation");
+        data.put("id", annotationId);
+        vertx.eventBus().<byte[]>send(
+                GET_OBJECT_EVENT, data, fileAnnotationResult -> {
+            try {
+                if (fileAnnotationResult.failed()) {
+                    log.info(fileAnnotationResult.cause().getMessage());
+                    message.reply("Failed to get annotation");
+                    return;
+                }
+                FileAnnotation fileAnnotation = deserialize(fileAnnotationResult);
+                Long fileId = fileAnnotation.getFile().getId();
+                final JsonObject getOriginalFileData = new JsonObject();
+                getOriginalFileData.put("sessionKey", sessionKey);
+                getOriginalFileData.put("type", "OriginalFile");
+                getOriginalFileData.put("id", fileId);
+                log.info(getOriginalFileData.toString());
+                vertx.eventBus().<byte[]>send(
+                        GET_OBJECT_EVENT, getOriginalFileData, originalFileResult -> {
+                    try {
+                        if (originalFileResult.failed()) {
+                            log.info(originalFileResult.cause().getMessage());
+                            message.reply("Failed to get annotation");
+                            return;
+                        }
+                        OriginalFile of = deserialize(originalFileResult);
+                        log.info(of.getId().toString());
+                        log.info(of.getPath());
+                        log.info(of.getName());
+                        String fullFilePath = (of.getPath() + of.getName());
+                        message.reply(fullFilePath);
+                    } catch (IOException | ClassNotFoundException e) {
+                        log.error("Exception while decoding object in response", e);
+                        message.fail(404, "Failed to get OriginalFile");
+                        return;
+                    }
+                });
+            } catch (IOException | ClassNotFoundException e) {
+                log.error("Exception while decoding object in response", e);
+                message.fail(404, "Failed to get FileAnnotation");
+                return;
+            }
+        });
+    }
 }
