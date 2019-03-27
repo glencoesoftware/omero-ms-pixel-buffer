@@ -32,8 +32,6 @@ import org.springframework.context.ApplicationContext;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import Glacier2.CannotCreateSessionException;
-import Glacier2.PermissionDeniedException;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -42,6 +40,9 @@ import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.json.JsonObject;
 import ome.model.annotations.FileAnnotation;
 import ome.model.core.OriginalFile;
+import ome.io.nio.FileBuffer;
+import ome.io.nio.OriginalFilesService;
+
 
 /**
  * OMERO thumbnail provider worker verticle. This verticle is designed to be
@@ -74,16 +75,20 @@ public class PixelBufferVerticle extends AbstractVerticle {
     /** OMERO server Spring application context. */
     private ApplicationContext context;
 
+    /** Original File Service for getting paths */
+    private OriginalFilesService ioService;
+
     /**
      * Default constructor.
      * @param host OMERO server host.
      * @param port OMERO server port.
      */
     public PixelBufferVerticle(
-            String host, int port, ApplicationContext context) {
+            String host, int port, String omeroDataDir, ApplicationContext context) {
         this.host = host;
         this.port = port;
         this.context = context;
+        this.ioService = new OriginalFilesService(omeroDataDir, true);
     }
 
     /* (non-Javadoc)
@@ -195,11 +200,9 @@ public class PixelBufferVerticle extends AbstractVerticle {
                             return;
                         }
                         OriginalFile of = deserialize(originalFileResult);
-                        log.info(of.getId().toString());
-                        log.info(of.getPath());
-                        log.info(of.getName());
-                        String fullFilePath = (of.getPath() + of.getName());
-                        message.reply(fullFilePath);
+                        FileBuffer fBuffer = ioService.getFileBuffer(of, "r");
+                        log.info(fBuffer.getPath());
+                        message.reply(fBuffer.getPath());
                     } catch (IOException | ClassNotFoundException e) {
                         log.error("Exception while decoding object in response", e);
                         message.fail(404, "Failed to get OriginalFile");

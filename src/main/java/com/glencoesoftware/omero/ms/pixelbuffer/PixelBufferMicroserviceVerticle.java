@@ -30,8 +30,6 @@ import com.glencoesoftware.omero.ms.core.OmeroWebRedisSessionStore;
 import com.glencoesoftware.omero.ms.core.OmeroWebSessionStore;
 import com.glencoesoftware.omero.ms.core.OmeroWebSessionRequestHandler;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.config.ConfigStoreOptions;
@@ -130,7 +128,10 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                     "'omero' block missing from configuration");
         }
         vertx.deployVerticle(new PixelBufferVerticle(
-                omero.getString("host"), omero.getInteger("port"), context),
+                omero.getString("host"),
+                omero.getInteger("port"),
+                omeroServer.getString("omero.data.dir"),
+                context),
                 new DeploymentOptions()
                         .setWorker(true)
                         .setMultiThreaded(true)
