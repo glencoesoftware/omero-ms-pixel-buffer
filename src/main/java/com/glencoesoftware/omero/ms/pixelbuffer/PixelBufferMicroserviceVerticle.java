@@ -178,6 +178,10 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 "/annotation/:annotationId")
             .handler(this::getFileAnnotation);
 
+        router.get(
+                "/file/:fileId")
+            .handler(this::getOriginalFile);
+
         int port = config.getInteger("port");
         log.info("Starting HTTP server *:{}", port);
         server.requestHandler(router::accept).listen(port,
@@ -305,6 +309,42 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                         String[] pathComponents = filePath.split("/");
                         String fileName = pathComponents[pathComponents.length -1];
                         response.headers().set("Content-Type", "application/octet-stream");
+                        response.headers().set("Content-Disposition",
+                                "attachment; filename=\"" + fileName + "\"");
+                        response.sendFile(filePath);
+                    }
+                });
+
+    }
+
+    private void getOriginalFile(RoutingContext event) {
+        log.info("Get Original File");
+        HttpServerRequest request = event.request();
+        HttpServerResponse response = event.response();
+        String sessionKey = event.get("omero.session_key");
+        JsonObject data = new JsonObject();
+        data.put("sessionKey", sessionKey);
+        data.put("fileId", Long.parseLong(request.getParam("fileId")));
+        vertx.eventBus().<JsonObject>send(
+                PixelBufferVerticle.GET_ORIGINAL_FILE_EVENT,
+                data, new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> result) {
+                        if (result.failed()) {
+                            log.error(result.cause().getMessage());
+                            response.setStatusCode(404);
+                            response.end("Could not get annotation "
+                                        + request.getParam("annotationId"));
+                            return;
+                        }
+                        JsonObject resultBody = result.result().body();
+                        String filePath = resultBody.getString("filePath");
+                        String fileName = resultBody.getString("fileName");
+                        String mimeType = resultBody.getString("mimeType");
+                        log.info(filePath);
+                        log.info(fileName);
+                        log.info(mimeType);
+                        response.headers().set("Content-Type", mimeType);
                         response.headers().set("Content-Disposition",
                                 "attachment; filename=\"" + fileName + "\"");
                         response.sendFile(filePath);
