@@ -18,8 +18,17 @@
 
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -182,6 +191,10 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 "/file/:fileId")
             .handler(this::getOriginalFile);
 
+        router.get(
+                "/zip/:imageId")
+            .handler(this::getZippedFiles);
+
         int port = config.getInteger("port");
         log.info("Starting HTTP server *:{}", port);
         server.requestHandler(router::accept).listen(port,
@@ -326,31 +339,78 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         data.put("sessionKey", sessionKey);
         data.put("fileId", Long.parseLong(request.getParam("fileId")));
         vertx.eventBus().<JsonObject>send(
-                PixelBufferVerticle.GET_ORIGINAL_FILE_EVENT,
-                data, new Handler<AsyncResult<Message<JsonObject>>>() {
-                    @Override
-                    public void handle(AsyncResult<Message<JsonObject>> result) {
-                        if (result.failed()) {
-                            log.error(result.cause().getMessage());
-                            response.setStatusCode(404);
-                            response.end("Could not get annotation "
-                                        + request.getParam("annotationId"));
-                            return;
-                        }
-                        JsonObject resultBody = result.result().body();
-                        String filePath = resultBody.getString("filePath");
-                        String fileName = resultBody.getString("fileName");
-                        String mimeType = resultBody.getString("mimeType");
-                        log.info(filePath);
-                        log.info(fileName);
-                        log.info(mimeType);
-                        response.headers().set("Content-Type", mimeType);
-                        response.headers().set("Content-Disposition",
-                                "attachment; filename=\"" + fileName + "\"");
-                        response.sendFile(filePath);
+            PixelBufferVerticle.GET_ORIGINAL_FILE_EVENT,
+            data, new Handler<AsyncResult<Message<JsonObject>>>() {
+                @Override
+                public void handle(AsyncResult<Message<JsonObject>> result) {
+                    if (result.failed()) {
+                        log.error(result.cause().getMessage());
+                        response.setStatusCode(404);
+                        response.end("Could not get original file "
+                                    + request.getParam("fileId"));
+                        return;
                     }
-                });
+                    JsonObject resultBody = result.result().body();
+                    String filePath = resultBody.getString("filePath");
+                    String fileName = resultBody.getString("fileName");
+                    String mimeType = resultBody.getString("mimeType");
+                    log.info(filePath);
+                    log.info(fileName);
+                    log.info(mimeType);
+                    response.headers().set("Content-Type", mimeType);
+                    response.headers().set("Content-Disposition",
+                            "attachment; filename=\"" + fileName + "\"");
+                    response.sendFile(filePath);
+                }
+            }
+        );
+    }
 
+    private void getZippedFiles(RoutingContext event) {
+        log.info("Get Zipped Files");
+        HttpServerRequest request = event.request();
+        HttpServerResponse response = event.response();
+        String sessionKey = event.get("omero.session_key");
+        JsonObject data = new JsonObject();
+        data.put("sessionKey", sessionKey);
+        data.put("imageId", Long.parseLong(request.getParam("imageId")));
+        vertx.eventBus().<JsonObject>send(
+            PixelBufferVerticle.GET_ZIPPED_FILES_EVENT,
+            data, new Handler<AsyncResult<Message<JsonObject>>>() {
+                @Override
+                public void handle(AsyncResult<Message<JsonObject>> result) {
+                    if (result.failed()) {
+                        log.error(result.cause().getMessage());
+                        response.setStatusCode(404);
+                        response.end("Could not get zipped files "
+                                    + request.getParam("annotationId"));
+                        return;
+                    }
+                    JsonObject resultBody = result.result().body();
+                    String filePath = resultBody.getString("filePath");
+                    String fileName = resultBody.getString("fileName");
+                    String mimeType = resultBody.getString("mimeType");
+                    log.info(filePath);
+                    log.info(fileName);
+                    log.info(mimeType);
+                    response.headers().set("Content-Type", mimeType);
+                    response.headers().set("Content-Disposition",
+                            "attachment; filename=\"" + fileName + "\"");
+                    response.sendFile(filePath, new Handler<AsyncResult<Void>>() {
+                        public void handle(AsyncResult<Void> result) {
+                            File zipFile = new File(filePath);
+                            log.info(zipFile.getAbsolutePath());
+                            /*
+                            log.info("Attempting to delete: " + zipFile.getAbsolutePath());
+                            if (!zipFile.delete()) {
+                                log.error("Failed to delete file " + filePath);
+                            }
+                            */
+                        }
+                    });
+                }
+            }
+        );
     }
 
 }

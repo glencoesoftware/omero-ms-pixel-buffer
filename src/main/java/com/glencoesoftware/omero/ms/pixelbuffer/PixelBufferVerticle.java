@@ -20,10 +20,18 @@ package com.glencoesoftware.omero.ms.pixelbuffer;
 
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.perf4j.StopWatch;
 import org.perf4j.slf4j.Slf4JStopWatch;
@@ -39,10 +47,14 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import ome.model.annotations.FileAnnotation;
+import ome.model.core.Image;
 import ome.model.core.OriginalFile;
+import ome.model.fs.Fileset;
+import ome.model.fs.FilesetEntry;
 import ome.io.nio.FileBuffer;
 import ome.io.nio.OriginalFilesService;
 
@@ -69,11 +81,20 @@ public class PixelBufferVerticle extends AbstractVerticle {
     public static final String GET_ORIGINAL_FILE_EVENT =
             "omero.pixel_buffer.get_original_file";
 
+    public static final String GET_ZIPPED_FILES_EVENT =
+            "omero.pixel_buffer.get_zipped_files";
+
     private static final String GET_OBJECT_EVENT =
             "omero.get_object";
 
     public static final String GET_FILE_PATH_EVENT =
             "omero.get_file_path";
+
+    public static final String GET_IMPORTED_IMAGE_FILES_EVENT =
+            "omero.get_imported_image_files";
+
+    public static final String GET_ORIGINAL_FILE_PATHS_EVENT =
+            "omero.get_original_file_paths";
 
     /** OMERO server host */
     private final String host;
@@ -115,6 +136,9 @@ public class PixelBufferVerticle extends AbstractVerticle {
 
         vertx.eventBus().<JsonObject>consumer(
                 GET_ORIGINAL_FILE_EVENT, this::getOriginalFile);
+
+        vertx.eventBus().<JsonObject>consumer(
+                GET_ZIPPED_FILES_EVENT, this::getZippedFiles);
     }
 
     private void getTile(Message<String> message) {
@@ -275,6 +299,92 @@ public class PixelBufferVerticle extends AbstractVerticle {
             } catch (IOException | ClassNotFoundException e) {
                 log.error("Exception while decoding object in response", e);
                 message.fail(404, "Error decoding file path object");
+            }
+        });
+    }
+
+    private String createZip(String zipName, List<String> filePaths) throws FileNotFoundException {
+        FileOutputStream fos = new FileOutputStream(zipName);
+        ZipOutputStream zos = new ZipOutputStream(fos);
+        try {
+        for (String fpath : filePaths) {
+                File f = new File(fpath);
+                ZipEntry entry = new ZipEntry(f.getName());
+                zos.putNextEntry(entry);
+                FileInputStream fis = new FileInputStream(f);
+
+                byte[] bytes = new byte[1024];
+                int length;
+                while((length = fis.read(bytes)) >= 0) {
+                    zos.write(bytes, 0, length);
+                }
+                fis.close();
+        }
+        zos.close();
+        fos.close();
+        } catch (IOException e) {
+            log.error("Failure during zip");
+            //TODO What is the correct behavior here?
+        }
+        return zipName;
+    }
+
+    private void getZippedFiles(Message<JsonObject> message) {
+        JsonObject messageBody = message.body();
+        String sessionKey = messageBody.getString("sessionKey");
+        Long imageId = messageBody.getLong("imageId");
+        log.debug("Session key: " + sessionKey);
+        log.debug("Image ID: {}", imageId);
+
+        //Get image
+        final JsonObject data = new JsonObject();
+        data.put("sessionKey", sessionKey);
+        data.put("imageId", imageId);
+        vertx.eventBus().<byte[]>send(GET_IMPORTED_IMAGE_FILES_EVENT, data, getImportedFilesResult -> {
+            try {
+                if (getImportedFilesResult.failed()) {
+                    log.error(getImportedFilesResult.cause().getMessage());
+                    message.reply("Failed to get image");
+                    return;
+                }
+                List<OriginalFile> originalFiles = deserialize(getImportedFilesResult);
+                log.info(String.valueOf(originalFiles.size()));
+                JsonObject getOriginalFilePathsData = new JsonObject();
+                JsonArray fileIds = new JsonArray();
+                for (OriginalFile of : originalFiles) {
+                    fileIds.add(of.getId());
+                }
+                //FilesetEntry fsEntry = fsEntryIter.next();
+                final JsonObject filepathData = new JsonObject();
+                filepathData.put("sessionKey", sessionKey);
+                filepathData.put("originalFileIds", fileIds);
+                log.info("Getting OriginalFile Paths");
+                vertx.eventBus().<byte[]>send(
+                        GET_ORIGINAL_FILE_PATHS_EVENT, filepathData, filePathResult -> {
+                    try {
+                        if (filePathResult.failed()) {
+                            log.error(filePathResult.cause().getMessage());
+                            message.fail(404, "Failed to get file path");
+                            return;
+                        }
+                        final List<String> filePaths = deserialize(filePathResult);
+                        for (String fp : filePaths) {
+                            log.info(fp);
+                        }
+                        String zipName = "image" + imageId.toString() + ".zip";
+                        String zipLocation = createZip(zipName, filePaths);
+                        JsonObject pathObj = new JsonObject();
+                        pathObj.put("filePath", zipLocation);
+                        pathObj.put("fileName", "mytest.zip");
+                        pathObj.put("mimeType", "application/zip");
+                        message.reply(pathObj);
+                    } catch (IOException | ClassNotFoundException e) {
+                        log.error("Exception while decoding object in response", e);
+                        message.fail(404, "Error decoding file path object");
+                    }
+                });
+            } catch (IOException | ClassNotFoundException e) {
+
             }
         });
     }
