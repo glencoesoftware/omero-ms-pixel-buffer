@@ -76,6 +76,9 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
     /** OMERO server Spring application context. */
     private ApplicationContext context;
 
+    /** Directory to save zip files for download */
+    private String zipDirectory;
+
     /**
      * Entry point method which starts the server event loop and initializes
      * our current OMERO.web session store.
@@ -114,6 +117,9 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
      */
     public void deploy(JsonObject config, Future<Void> future) {
         log.info("Deploying verticle");
+
+        zipDirectory = config.getString("zip-download-path");
+        new File(zipDirectory).mkdirs();
 
         // Set OMERO.server configuration options using system properties
         JsonObject omeroServer = config.getJsonObject("omero.server");
@@ -374,6 +380,7 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         JsonObject data = new JsonObject();
         data.put("sessionKey", sessionKey);
         data.put("imageId", Long.parseLong(request.getParam("imageId")));
+        data.put("zipDirectory", zipDirectory);
         vertx.eventBus().<JsonObject>send(
             PixelBufferVerticle.GET_ZIPPED_FILES_EVENT,
             data, new Handler<AsyncResult<Message<JsonObject>>>() {
@@ -399,13 +406,11 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                     response.sendFile(filePath, new Handler<AsyncResult<Void>>() {
                         public void handle(AsyncResult<Void> result) {
                             File zipFile = new File(filePath);
-                            log.info(zipFile.getAbsolutePath());
-                            /*
+                            //log.info(zipFile.getAbsolutePath());
                             log.info("Attempting to delete: " + zipFile.getAbsolutePath());
                             if (!zipFile.delete()) {
                                 log.error("Failed to delete file " + filePath);
                             }
-                            */
                         }
                     });
                 }

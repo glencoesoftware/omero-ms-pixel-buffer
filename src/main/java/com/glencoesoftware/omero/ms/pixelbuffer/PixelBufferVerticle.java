@@ -303,8 +303,8 @@ public class PixelBufferVerticle extends AbstractVerticle {
         });
     }
 
-    private String createZip(String zipName, List<String> filePaths) throws FileNotFoundException {
-        FileOutputStream fos = new FileOutputStream(zipName);
+    private boolean createZip(String fullZipPath, List<String> filePaths) throws FileNotFoundException {
+        FileOutputStream fos = new FileOutputStream(fullZipPath);
         ZipOutputStream zos = new ZipOutputStream(fos);
         try {
         for (String fpath : filePaths) {
@@ -323,16 +323,17 @@ public class PixelBufferVerticle extends AbstractVerticle {
         zos.close();
         fos.close();
         } catch (IOException e) {
-            log.error("Failure during zip");
-            //TODO What is the correct behavior here?
+            log.error("Failure during zip: " + e.getMessage());
+            return false;
         }
-        return zipName;
+        return true;
     }
 
     private void getZippedFiles(Message<JsonObject> message) {
         JsonObject messageBody = message.body();
         String sessionKey = messageBody.getString("sessionKey");
         Long imageId = messageBody.getLong("imageId");
+        final String zipDirectory = messageBody.getString("zipDirectory");
         log.debug("Session key: " + sessionKey);
         log.debug("Image ID: {}", imageId);
 
@@ -372,12 +373,18 @@ public class PixelBufferVerticle extends AbstractVerticle {
                             log.info(fp);
                         }
                         String zipName = "image" + imageId.toString() + ".zip";
-                        String zipLocation = createZip(zipName, filePaths);
-                        JsonObject pathObj = new JsonObject();
-                        pathObj.put("filePath", zipLocation);
-                        pathObj.put("fileName", "mytest.zip");
-                        pathObj.put("mimeType", "application/zip");
-                        message.reply(pathObj);
+                        String zipFullPath = zipDirectory + "/" + zipName;
+                        boolean success = createZip(zipFullPath, filePaths);
+                        if (success) {
+                            JsonObject pathObj = new JsonObject();
+                            pathObj.put("filePath", zipFullPath);
+                            pathObj.put("fileName", zipName);
+                            pathObj.put("mimeType", "application/zip");
+                            message.reply(pathObj);
+                        }
+                        else {
+                            message.fail(404, "Error creating zip");
+                        }
                     } catch (IOException | ClassNotFoundException e) {
                         log.error("Exception while decoding object in response", e);
                         message.fail(404, "Error decoding file path object");
