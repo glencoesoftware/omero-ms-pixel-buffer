@@ -374,6 +374,14 @@ public class PixelBufferVerticle extends AbstractVerticle {
                         }
                         String zipName = "image" + imageId.toString() + ".zip";
                         String zipFullPath = zipDirectory + "/" + zipName;
+                        File zipFile = new File(zipFullPath);
+                        int fileIndex = 1;
+                        while (zipFile.exists()) {
+                            log.info("Zip name collision: " + zipFullPath);
+                            zipName = "image" + imageId.toString() + "_" + String.valueOf(fileIndex) + ".zip";
+                            zipFullPath = zipDirectory + "/" + zipName;
+                            zipFile = new File(zipFullPath);
+                        }
                         boolean success = createZip(zipFullPath, filePaths);
                         if (success) {
                             JsonObject pathObj = new JsonObject();
