@@ -337,7 +337,7 @@ public class PixelBufferVerticle extends AbstractVerticle {
         log.debug("Session key: " + sessionKey);
         log.debug("Image ID: {}", imageId);
 
-        //Get image
+        //Get OriginalFiles for Image
         final JsonObject data = new JsonObject();
         data.put("sessionKey", sessionKey);
         data.put("imageId", imageId);
@@ -350,15 +350,14 @@ public class PixelBufferVerticle extends AbstractVerticle {
                 }
                 List<OriginalFile> originalFiles = deserialize(getImportedFilesResult);
                 log.info(String.valueOf(originalFiles.size()));
-                JsonObject getOriginalFilePathsData = new JsonObject();
                 JsonArray fileIds = new JsonArray();
                 for (OriginalFile of : originalFiles) {
                     fileIds.add(of.getId());
                 }
-                //FilesetEntry fsEntry = fsEntryIter.next();
                 final JsonObject filepathData = new JsonObject();
                 filepathData.put("sessionKey", sessionKey);
                 filepathData.put("originalFileIds", fileIds);
+                //Get File Paths for OriginalFiles
                 log.info("Getting OriginalFile Paths");
                 vertx.eventBus().<byte[]>send(
                         GET_ORIGINAL_FILE_PATHS_EVENT, filepathData, filePathResult -> {
@@ -378,7 +377,8 @@ public class PixelBufferVerticle extends AbstractVerticle {
                         int fileIndex = 1;
                         while (zipFile.exists()) {
                             log.info("Zip name collision: " + zipFullPath);
-                            zipName = "image" + imageId.toString() + "_" + String.valueOf(fileIndex) + ".zip";
+                            zipName = "image" + imageId.toString()
+                                       + "_" + String.valueOf(fileIndex) + ".zip";
                             zipFullPath = zipDirectory + "/" + zipName;
                             zipFile = new File(zipFullPath);
                         }

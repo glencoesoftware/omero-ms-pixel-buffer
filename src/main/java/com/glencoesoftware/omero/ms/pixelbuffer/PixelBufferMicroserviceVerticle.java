@@ -406,7 +406,6 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                     response.sendFile(filePath, new Handler<AsyncResult<Void>>() {
                         public void handle(AsyncResult<Void> result) {
                             File zipFile = new File(filePath);
-                            //log.info(zipFile.getAbsolutePath());
                             log.info("Attempting to delete: " + zipFile.getAbsolutePath());
                             if (!zipFile.delete()) {
                                 log.error("Failed to delete file " + filePath);
