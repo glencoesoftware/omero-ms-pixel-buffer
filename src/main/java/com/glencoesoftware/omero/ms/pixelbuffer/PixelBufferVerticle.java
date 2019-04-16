@@ -155,8 +155,8 @@ public class PixelBufferVerticle extends AbstractVerticle {
             return;
         }
         log.debug("Load tile with data: {}", message.body());
-            log.debug("Connecting to the server: {}, {}, {}",
-                      host, port, tileCtx.omeroSessionKey);
+        log.debug("Connecting to the server: {}, {}, {}",
+                  host, port, tileCtx.omeroSessionKey);
 
         new TileRequestHandler(context, tileCtx, vertx).getTile(tileCtx.omeroSessionKey, tileCtx.imageId)
         .whenComplete(new BiConsumer<byte[], Throwable>() {
