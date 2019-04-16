@@ -93,44 +93,44 @@ public class PixelBufferVerticle extends AbstractVerticle {
             return;
         }
         log.debug("Load tile with data: {}", message.body());
-            log.debug("Connecting to the server: {}, {}, {}",
-                      host, port, tileCtx.omeroSessionKey);
-            try (OmeroRequest request = new OmeroRequest(
-                     host, port, tileCtx.omeroSessionKey))
-            {
-                byte[] tile = request.execute(
-                        new TileRequestHandler(context, tileCtx)::getTile);
-                if (tile == null) {
-                    message.fail(
-                            404, "Cannot find Image:" + tileCtx.imageId);
-                } else {
-                    DeliveryOptions deliveryOptions = new DeliveryOptions();
-                    deliveryOptions.addHeader(
-                        "filename", String.format(
-                            "image%d_z%d_c%d_t%d_x%d_y%d_w%d_h%d.%s",
-                            tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
-                            tileCtx.region.getX(),
-                            tileCtx.region.getY(),
-                            tileCtx.region.getWidth(),
-                            tileCtx.region.getHeight(),
-                            Optional.ofNullable(tileCtx.format).orElse("bin")
-                        )
-                    );
-                    message.reply(tile, deliveryOptions);
-                }
-            } catch (PermissionDeniedException
-                    | CannotCreateSessionException e) {
-                String v = "Permission denied";
-                log.debug(v);
-                message.fail(403, v);
-            } catch (IllegalArgumentException e) {
-                log.debug("Illegal argument received while retrieving tile", e);
-                message.fail(400, e.getMessage());
-            } catch (Exception e) {
-                String v = "Exception while retrieving tile";
-                log.error(v, e);
-                message.fail(500, v);
+        log.debug("Connecting to the server: {}, {}, {}",
+                  host, port, tileCtx.omeroSessionKey);
+        try (OmeroRequest request = new OmeroRequest(
+                 host, port, tileCtx.omeroSessionKey))
+        {
+            byte[] tile = request.execute(
+                    new TileRequestHandler(context, tileCtx)::getTile);
+            if (tile == null) {
+                message.fail(
+                        404, "Cannot find Image:" + tileCtx.imageId);
+            } else {
+                DeliveryOptions deliveryOptions = new DeliveryOptions();
+                deliveryOptions.addHeader(
+                    "filename", String.format(
+                        "image%d_z%d_c%d_t%d_x%d_y%d_w%d_h%d.%s",
+                        tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
+                        tileCtx.region.getX(),
+                        tileCtx.region.getY(),
+                        tileCtx.region.getWidth(),
+                        tileCtx.region.getHeight(),
+                        Optional.ofNullable(tileCtx.format).orElse("bin")
+                    )
+                );
+                message.reply(tile, deliveryOptions);
             }
+        } catch (PermissionDeniedException
+                | CannotCreateSessionException e) {
+            String v = "Permission denied";
+            log.debug(v);
+            message.fail(403, v);
+        } catch (IllegalArgumentException e) {
+            log.debug("Illegal argument received while retrieving tile", e);
+            message.fail(400, e.getMessage());
+        } catch (Exception e) {
+            String v = "Exception while retrieving tile";
+            log.error(v, e);
+            message.fail(500, v);
+        }
     }
 
 }

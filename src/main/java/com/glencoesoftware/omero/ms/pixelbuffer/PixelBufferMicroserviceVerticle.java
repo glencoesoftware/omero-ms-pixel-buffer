@@ -230,7 +230,13 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                     if (t instanceof ReplyException) {
                         statusCode = ((ReplyException) t).failureCode();
                     }
-                    response.setStatusCode(statusCode);
+                    if (statusCode < 1) {
+                        log.error("Unexpected failure code {} setting 500 ", t);
+                        statusCode = 500;
+                    }
+                    if (!response.closed()) {
+                        response.setStatusCode(statusCode).end();
+                    }
                     return;
                 }
                 byte[] tile = result.result().body();
@@ -251,9 +257,10 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                         String.format(
                                 "attachment; filename=\"%s\"",
                                 result.result().headers().get("filename")));
-                response.write(Buffer.buffer(tile));
+                if (!response.closed()) {
+                    response.end(Buffer.buffer(tile));
+                }
             } finally {
-                response.end();
                 log.debug("Response ended");
             }
         });
