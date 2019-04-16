@@ -18,10 +18,14 @@
 
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import loci.common.ByteArrayHandle;
 import loci.common.Location;
@@ -41,19 +45,26 @@ import org.perf4j.slf4j.Slf4JStopWatch;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
+import ome.model.core.Pixels;
+import ome.model.core.Image;
 import omero.ApiUsageException;
 import omero.ServerError;
-import omero.model.Image;
-import omero.model.Pixels;
-import omero.sys.ParametersI;
-import omero.util.IceMapper;
 
 public class TileRequestHandler {
 
     private static final org.slf4j.Logger log =
             LoggerFactory.getLogger(TileRequestHandler.class);
+
+    private static final String GET_PIXELS_DESCRIPTION_EVENT = "omero.get_pixels_description";
+
+    private static final String GET_PIXELS_EVENT = "omero.get_pixels";
 
     /** OMERO server Spring application context. */
     private final ApplicationContext context;
@@ -64,75 +75,83 @@ public class TileRequestHandler {
     /** Tile Context */
     private final TileCtx tileCtx;
 
-    /**
-     * Mapper between <code>omero.model</code> client side Ice backed objects
-     * and <code>ome.model</code> server side Hibernate backed objects. 
-     */
-    private final IceMapper mapper = new IceMapper();
+    /** Handle on vertx instance */
+    Vertx vertx;
 
     /**
      * Default constructor.
      * @param tileCtx {@link TileCtx} object
      */
-    public TileRequestHandler(ApplicationContext context, TileCtx tileCtx) {
+    public TileRequestHandler(ApplicationContext context,
+            TileCtx tileCtx,
+            Vertx vertx) {
         log.info("Setting up handler");
         this.context = context;
-        pixelsService = (PixelsService) context.getBean("/OMERO/Pixels"); 
+        pixelsService = (PixelsService) context.getBean("/OMERO/Pixels");
         this.tileCtx = tileCtx;
+        this.vertx = vertx;
     }
 
-    public byte[] getTile(omero.client client) {
+    public CompletableFuture<byte[]> getTile(String omeroSessionKey, Long imageId) {
+        log.info("In TileRequestHandler::getTIle");
         StopWatch t0 = new Slf4JStopWatch("getTile");
-        try {
-            Pixels pixels = getPixels(client, tileCtx.imageId);
-            if (pixels != null) {
-                try (PixelBuffer pixelBuffer = getPixelBuffer(pixels)) {
-                    String format = tileCtx.format;
-                    RegionDef region = tileCtx.region;
-                    if (tileCtx.resolution != null) {
-                        pixelBuffer.setResolutionLevel(tileCtx.resolution);
-                    }
-                    if (region.getWidth() == 0) {
-                        region.setWidth(pixels.getSizeX().getValue());
-                    }
-                    if (region.getHeight() == 0) {
-                        region.setHeight(pixels.getSizeY().getValue());
-                    }
-                    int width = region.getWidth();
-                    int height = region.getHeight();
-                    int bytesPerPixel =
-                            pixels.getPixelsType().getBitSize().getValue() / 8;
-                    int tileSize = width * height * bytesPerPixel;
-                    byte[] tile = new byte[tileSize];
-                    pixelBuffer.getTileDirect(
-                        tileCtx.z, tileCtx.c, tileCtx.t,
-                        region.getX(), region.getY(), width, height, tile);
-
-                    log.debug(
-                            "Image:{}, z: {}, c: {}, t: {}, resolution: {}, " +
-                            "region: {}, format: {}",
-                            tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
-                            tileCtx.resolution, region, format);
-                    if (format != null) {
-                        IMetadata metadata = createMetadata(pixels);
-
-                        if (format.equals("png") || format.equals("tif")) {
-                            return writeImage(format, tile, metadata);
+        CompletableFuture<byte[]> promise = new CompletableFuture<byte[]>();
+        getPixels(omeroSessionKey, tileCtx.imageId)
+        .thenAccept(new Consumer<Pixels>() {
+            @Override
+            public void accept(Pixels pixels) {
+                log.info("In getPixels callback");
+                if (pixels != null) {
+                    try (PixelBuffer pixelBuffer = pixelsService.getPixelBuffer(pixels, false)) {
+                        String format = tileCtx.format;
+                        RegionDef region = tileCtx.region;
+                        if (tileCtx.resolution != null) {
+                            pixelBuffer.setResolutionLevel(tileCtx.resolution);
                         }
-                        log.error("Unknown output format: {}", format);
-                        return null;
+                        if (region.getWidth() == 0) {
+                            region.setWidth(pixels.getSizeX());
+                        }
+                        if (region.getHeight() == 0) {
+                            region.setHeight(pixels.getSizeY());
+                        }
+                        int width = region.getWidth();
+                        int height = region.getHeight();
+                        int bytesPerPixel =
+                                pixels.getPixelsType().getBitSize() / 8;
+                        int tileSize = width * height * bytesPerPixel;
+                        byte[] tile = new byte[tileSize];
+                        pixelBuffer.getTileDirect(
+                            tileCtx.z, tileCtx.c, tileCtx.t,
+                            region.getX(), region.getY(), width, height, tile);
+
+                        log.debug(
+                                "Image:{}, z: {}, c: {}, t: {}, resolution: {}, " +
+                                "region: {}, format: {}",
+                                tileCtx.imageId, tileCtx.z, tileCtx.c, tileCtx.t,
+                                tileCtx.resolution, region, format);
+                        if (format != null) {
+                            IMetadata metadata = createMetadata(pixels);
+
+                            if (format.equals("png") || format.equals("tif")) {
+                                promise.complete(writeImage(format, tile, metadata));
+                            } else {
+                                log.error("Unknown output format: {}", format);
+                                promise.complete(null);
+                            }
+                        }
+                        promise.complete(tile);
                     }
-                    return tile;
+                    catch(IOException | EnumerationException
+                            | FormatException e) {
+                        promise.completeExceptionally(e);
+                    }
+                } else {
+                    log.debug("Cannot find Image:{}", tileCtx.imageId);
+                    promise.complete(null);
                 }
-            } else {
-                log.debug("Cannot find Image:{}", tileCtx.imageId);
             }
-        } catch (Exception e) {
-            log.error("Exception while retrieving tile", e);
-        } finally {
-            t0.stop();
-        }
-        return null;
+        });
+        return promise;
     }
 
 
@@ -156,7 +175,7 @@ public class TileRequestHandler {
         metadata.setPixelsSizeT(new PositiveInteger(1), 0);
         metadata.setPixelsDimensionOrder(DimensionOrder.XYCZT, 0);
         metadata.setPixelsType(PixelType.fromString(
-                pixels.getPixelsType().getValue().getValue()), 0);
+                pixels.getPixelsType().getValue()), 0);
         return metadata;
     }
 
@@ -186,42 +205,38 @@ public class TileRequestHandler {
         }
     }
 
-    protected PixelBuffer getPixelBuffer(Pixels pixels)
-            throws ApiUsageException {
-        StopWatch t0 = new Slf4JStopWatch("getPixelBuffer");
-        try {
-            return pixelsService.getPixelBuffer(
-                    (ome.model.core.Pixels) mapper.reverse(pixels), false);
-        } finally {
-            t0.stop();
-        }
-    }
+    protected CompletableFuture<Pixels> getPixels(String omeroSessionKey, Long imageId){
+        log.info("In getPixels");
+        CompletableFuture<Pixels> promise = new CompletableFuture<Pixels>();
 
-    /**
-     * Retrieves a single {@link Pixels} from the server.
-     * @param client OMERO client to use for querying.
-     * @param imageId {@link Image} identifier to query for.
-     * @return Loaded {@link Pixels} or <code>null</code> if it does not exist.
-     * @throws ServerError If there was any sort of error retrieving the pixels.
-     */
-    protected Pixels getPixels(omero.client client, Long imageId)
-            throws ServerError {
-        Map<String, String> ctx = new HashMap<String, String>();
-        ctx.put("omero.group", "-1");
-        ParametersI params = new ParametersI();
-        params.addId(imageId);
-        StopWatch t0 = new Slf4JStopWatch("getPixels");
-        try {
-            return (Pixels) client.getSession().getQueryService().findByQuery(
-                "SELECT p FROM Pixels as p " +
-                "JOIN FETCH p.image " +
-                "JOIN FETCH p.pixelsType " +
-                "WHERE p.image.id = :id",
-                params, ctx
-            );
-        } finally {
-            t0.stop();
-        }
-    }
+        final JsonObject data = new JsonObject();
+        data.put("sessionKey", omeroSessionKey);
+        data.put("imageId", imageId);
+        vertx.eventBus().<byte[]>send(
+                GET_PIXELS_EVENT, data, new Handler<AsyncResult<Message<byte[]>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<byte[]>> result) {
 
+                    log.info("In backbone response");
+                    String s = "";
+                    try {
+                        if (result.failed()) {
+                            promise.completeExceptionally(result.cause());
+                            return;
+                        }
+                        ByteArrayInputStream bais =
+                                new ByteArrayInputStream(result.result().body());
+                        ObjectInputStream ois = new ObjectInputStream(bais);
+                        Pixels pixels = (Pixels) ois.readObject();
+                        promise.complete(pixels);
+                    } catch (IOException | ClassNotFoundException e) {
+                        promise.completeExceptionally(e);
+                        log.error("Exception while decoding object in response", e);
+                    }
+                }
+            }
+        );
+
+        return promise;
+    }
 }
