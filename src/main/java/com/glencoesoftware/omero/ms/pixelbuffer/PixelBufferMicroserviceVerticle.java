@@ -20,6 +20,8 @@ package com.glencoesoftware.omero.ms.pixelbuffer;
 
 import java.util.Optional;
 
+import org.perf4j.StopWatch;
+import org.perf4j.slf4j.Slf4JStopWatch;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -219,6 +221,8 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         TileCtx tileCtx = new TileCtx(
                 request.params(), event.get("omero.session_key"));
 
+        StopWatch t0 = new Slf4JStopWatch(
+                "PixelBufferMicroserviceVerticle.getTile");
         final HttpServerResponse response = event.response();
         vertx.eventBus().<byte[]>send(
                 PixelBufferVerticle.GET_TILE_EVENT,
@@ -263,6 +267,7 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 }
             } finally {
                 log.debug("Response ended");
+                t0.stop();
             }
         });
     }
