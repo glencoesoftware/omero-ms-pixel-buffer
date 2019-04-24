@@ -82,7 +82,7 @@ public class TileRequestHandler {
     }
 
     public byte[] getTile(omero.client client) {
-        StopWatch t0 = new Slf4JStopWatch("getTile");
+        StopWatch t0 = new Slf4JStopWatch("TileRequestHandler.getTile");
         try {
             Pixels pixels = getPixels(client, tileCtx.imageId);
             if (pixels != null) {
@@ -104,9 +104,14 @@ public class TileRequestHandler {
                             pixels.getPixelsType().getBitSize().getValue() / 8;
                     int tileSize = width * height * bytesPerPixel;
                     byte[] tile = new byte[tileSize];
-                    pixelBuffer.getTileDirect(
-                        tileCtx.z, tileCtx.c, tileCtx.t,
-                        region.getX(), region.getY(), width, height, tile);
+                    StopWatch t1 = new Slf4JStopWatch("getTileDirect");
+                    try {
+                        pixelBuffer.getTileDirect(
+                            tileCtx.z, tileCtx.c, tileCtx.t,
+                            region.getX(), region.getY(), width, height, tile);
+                    } finally {
+                        t1.stop();
+                    }
 
                     log.debug(
                             "Image:{}, z: {}, c: {}, t: {}, resolution: {}, " +
@@ -141,23 +146,28 @@ public class TileRequestHandler {
      */
     private IMetadata createMetadata(Pixels pixels)
             throws EnumerationException {
-        IMetadata metadata = MetadataTools.createOMEXMLMetadata();
-        metadata.setImageID("Image:0", 0);
-        metadata.setPixelsID("Pixels:0", 0);
-        metadata.setChannelID("Channel:0:0", 0, 0);
-        metadata.setChannelSamplesPerPixel(new PositiveInteger(1), 0, 0);
-        metadata.setPixelsBigEndian(true, 0);
-        metadata.setPixelsSizeX(
-                new PositiveInteger(tileCtx.region.getWidth()), 0);
-        metadata.setPixelsSizeY(
-                new PositiveInteger(tileCtx.region.getHeight()), 0);
-        metadata.setPixelsSizeZ(new PositiveInteger(1), 0);
-        metadata.setPixelsSizeC(new PositiveInteger(1), 0);
-        metadata.setPixelsSizeT(new PositiveInteger(1), 0);
-        metadata.setPixelsDimensionOrder(DimensionOrder.XYCZT, 0);
-        metadata.setPixelsType(PixelType.fromString(
-                pixels.getPixelsType().getValue().getValue()), 0);
-        return metadata;
+        StopWatch t0 = new Slf4JStopWatch("createMetadata");
+        try {
+            IMetadata metadata = MetadataTools.createOMEXMLMetadata();
+            metadata.setImageID("Image:0", 0);
+            metadata.setPixelsID("Pixels:0", 0);
+            metadata.setChannelID("Channel:0:0", 0, 0);
+            metadata.setChannelSamplesPerPixel(new PositiveInteger(1), 0, 0);
+            metadata.setPixelsBigEndian(true, 0);
+            metadata.setPixelsSizeX(
+                    new PositiveInteger(tileCtx.region.getWidth()), 0);
+            metadata.setPixelsSizeY(
+                    new PositiveInteger(tileCtx.region.getHeight()), 0);
+            metadata.setPixelsSizeZ(new PositiveInteger(1), 0);
+            metadata.setPixelsSizeC(new PositiveInteger(1), 0);
+            metadata.setPixelsSizeT(new PositiveInteger(1), 0);
+            metadata.setPixelsDimensionOrder(DimensionOrder.XYCZT, 0);
+            metadata.setPixelsType(PixelType.fromString(
+                    pixels.getPixelsType().getValue().getValue()), 0);
+            return metadata;
+        } finally {
+            t0.stop();
+        }
     }
 
     /**
@@ -168,6 +178,7 @@ public class TileRequestHandler {
             throws FormatException, IOException {
         String id = System.currentTimeMillis() + "." + extension;
         ByteArrayHandle handle = new ByteArrayHandle();
+        StopWatch t0 = new Slf4JStopWatch("writeImage");
         try (ImageWriter writer = new ImageWriter()) {
             writer.setMetadataRetrieve(metadata);
             Location.mapFile(id, handle);
@@ -183,6 +194,7 @@ public class TileRequestHandler {
         } finally {
             Location.mapFile(id, null);
             handle.close();
+            t0.stop();
         }
     }
 
