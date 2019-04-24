@@ -231,7 +231,8 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                         statusCode = ((ReplyException) t).failureCode();
                     }
                     if (statusCode < 1) {
-                        log.error("Unexpected failure code {} setting 500 ", t);
+                        log.error("Unexpected failure code {} setting 500 ",
+                                  statusCode, t);
                         statusCode = 500;
                     }
                     if (!response.closed()) {
