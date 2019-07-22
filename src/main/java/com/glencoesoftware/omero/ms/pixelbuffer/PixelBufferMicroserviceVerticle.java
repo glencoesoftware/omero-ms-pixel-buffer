@@ -18,7 +18,10 @@
 
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.perf4j.StopWatch;
 import org.perf4j.slf4j.Slf4JStopWatch;
@@ -29,7 +32,13 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 import com.glencoesoftware.omero.ms.core.OmeroWebJDBCSessionStore;
 import com.glencoesoftware.omero.ms.core.OmeroWebRedisSessionStore;
 import com.glencoesoftware.omero.ms.core.OmeroWebSessionStore;
+
+import brave.Tracing;
+import brave.http.HttpTracing;
+import brave.sampler.Sampler;
+
 import com.glencoesoftware.omero.ms.core.OmeroWebSessionRequestHandler;
+import com.glencoesoftware.omero.ms.core.OmeroHttpTracingHandler;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -39,6 +48,7 @@ import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.http.HttpServer;
@@ -50,6 +60,9 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.CookieHandler;
+import zipkin2.Span;
+import zipkin2.reporter.AsyncReporter;
+import zipkin2.reporter.okhttp3.OkHttpSender;
 
 /**
  * Main entry point for the OMERO pixel buffer Vert.x microservice server.
@@ -66,6 +79,8 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
 
     /** OMERO server Spring application context. */
     private ApplicationContext context;
+
+    private HttpTracing httpTracing;
 
     static {
         com.glencoesoftware.omero.ms.core.SSLUtils.fixDisabledAlgorithms();
@@ -137,6 +152,48 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
 
         HttpServer server = vertx.createHttpServer();
         Router router = Router.router(vertx);
+
+        try {
+            JsonObject httpTracingConfig = config.getJsonObject("http-tracing");
+            Boolean tracingEnabled = httpTracingConfig.getBoolean("enabled");
+            if(tracingEnabled) {
+                String zipkinUrl = httpTracingConfig.getString("zipkin-url");
+                OkHttpSender sender = OkHttpSender.create(zipkinUrl);
+                AsyncReporter<Span> spanReporter = AsyncReporter.create(sender);
+                Tracing tracing = Tracing.newBuilder()
+                    .sampler(Sampler.ALWAYS_SAMPLE)
+                    .localServiceName("omero-ms-image-region")
+                    .spanReporter(spanReporter)
+                    .build();
+                httpTracing = HttpTracing.newBuilder(tracing).build();
+                List<String> tags = new ArrayList<String>();
+                tags.add("omero.session_key");
+                tags.add("omero_ms.request_id");
+                Handler<RoutingContext> routingContextHandler =
+                        new OmeroHttpTracingHandler(httpTracing, tags);
+
+                /*Set up HttpTracing Routing */
+                router.route()
+                    .order(-1) // applies before routes
+                    .handler(routingContextHandler)
+                    .failureHandler(routingContextHandler);
+            }
+        }
+        catch (NullPointerException npe) {
+            log.warn("Missing configuration for http tracing");
+        }
+        catch (Exception e) {
+            log.warn("Failed to set up http tracing");
+            log.warn(e.toString());
+        }
+
+        // Establish a unique identifier for every request
+        router.route()
+            .handler((event) -> {
+            String requestId = UUID.randomUUID().toString();
+            event.put("omero_ms.request_id", requestId);
+            event.next();
+        });
 
         // Cookie handler so we can pick up the OMERO.web session
         router.route().handler(CookieHandler.create());
