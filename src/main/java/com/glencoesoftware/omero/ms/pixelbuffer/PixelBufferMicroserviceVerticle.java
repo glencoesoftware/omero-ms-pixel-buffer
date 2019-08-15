@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.perf4j.StopWatch;
-import org.perf4j.slf4j.Slf4JStopWatch;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -32,7 +30,9 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 import com.glencoesoftware.omero.ms.core.OmeroWebJDBCSessionStore;
 import com.glencoesoftware.omero.ms.core.OmeroWebRedisSessionStore;
 import com.glencoesoftware.omero.ms.core.OmeroWebSessionStore;
+import com.glencoesoftware.omero.ms.core.PrometheusSpanHandler;
 
+import brave.ScopedSpan;
 import brave.Tracing;
 import brave.http.HttpTracing;
 import brave.sampler.Sampler;
@@ -40,8 +40,6 @@ import brave.sampler.Sampler;
 import com.glencoesoftware.omero.ms.core.OmeroWebSessionRequestHandler;
 import com.glencoesoftware.omero.ms.core.OmeroHttpTracingHandler;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.config.ConfigStoreOptions;
@@ -63,6 +61,7 @@ import io.vertx.ext.web.handler.CookieHandler;
 import zipkin2.Span;
 import zipkin2.reporter.AsyncReporter;
 import zipkin2.reporter.okhttp3.OkHttpSender;
+import io.prometheus.client.vertx.MetricsHandler;
 
 /**
  * Main entry point for the OMERO pixel buffer Vert.x microservice server.
@@ -153,6 +152,10 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         HttpServer server = vertx.createHttpServer();
         Router router = Router.router(vertx);
 
+        router.get("/metrics")
+            .order(-2)
+            .handler(new MetricsHandler());
+
         try {
             JsonObject httpTracingConfig = config.getJsonObject("http-tracing");
             Boolean tracingEnabled = httpTracingConfig.getBoolean("enabled");
@@ -160,9 +163,11 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 String zipkinUrl = httpTracingConfig.getString("zipkin-url");
                 OkHttpSender sender = OkHttpSender.create(zipkinUrl);
                 AsyncReporter<Span> spanReporter = AsyncReporter.create(sender);
+                PrometheusSpanHandler prometheusSpanHandler = new PrometheusSpanHandler();
                 Tracing tracing = Tracing.newBuilder()
                     .sampler(Sampler.ALWAYS_SAMPLE)
-                    .localServiceName("omero-ms-image-region")
+                    .localServiceName("omero-ms-pixel-buffer")
+                    .addFinishedSpanHandler(prometheusSpanHandler)
                     .spanReporter(spanReporter)
                     .build();
                 httpTracing = HttpTracing.newBuilder(tracing).build();
@@ -282,8 +287,8 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         TileCtx tileCtx = new TileCtx(
                 request.params(), event.get("omero.session_key"));
 
-        StopWatch t0 = new Slf4JStopWatch(
-                "PixelBufferMicroserviceVerticle.getTile");
+        ScopedSpan span =
+                Tracing.currentTracer().startScopedSpan("pixel_buffer_ms_verticle_get_tile");
         final HttpServerResponse response = event.response();
         vertx.eventBus().<byte[]>send(
                 PixelBufferVerticle.GET_TILE_EVENT,
@@ -328,7 +333,7 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 }
             } finally {
                 log.debug("Response ended");
-                t0.stop();
+                span.finish();
             }
         });
     }

@@ -36,11 +36,11 @@ import ome.xml.model.enums.PixelType;
 import ome.xml.model.primitives.PositiveInteger;
 import omeis.providers.re.data.RegionDef;
 
-import org.perf4j.StopWatch;
-import org.perf4j.slf4j.Slf4JStopWatch;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
+import brave.ScopedSpan;
+import brave.Tracing;
 import ome.io.nio.PixelBuffer;
 import ome.io.nio.PixelsService;
 import omero.ApiUsageException;
@@ -66,7 +66,7 @@ public class TileRequestHandler {
 
     /**
      * Mapper between <code>omero.model</code> client side Ice backed objects
-     * and <code>ome.model</code> server side Hibernate backed objects. 
+     * and <code>ome.model</code> server side Hibernate backed objects.
      */
     private final IceMapper mapper = new IceMapper();
 
@@ -77,12 +77,13 @@ public class TileRequestHandler {
     public TileRequestHandler(ApplicationContext context, TileCtx tileCtx) {
         log.info("Setting up handler");
         this.context = context;
-        pixelsService = (PixelsService) context.getBean("/OMERO/Pixels"); 
+        pixelsService = (PixelsService) context.getBean("/OMERO/Pixels");
         this.tileCtx = tileCtx;
     }
 
     public byte[] getTile(omero.client client) {
-        StopWatch t0 = new Slf4JStopWatch("TileRequestHandler.getTile");
+        ScopedSpan span =
+                Tracing.currentTracer().startScopedSpan("get_tile");
         try {
             Pixels pixels = getPixels(client, tileCtx.imageId);
             if (pixels != null) {
@@ -104,13 +105,14 @@ public class TileRequestHandler {
                             pixels.getPixelsType().getBitSize().getValue() / 8;
                     int tileSize = width * height * bytesPerPixel;
                     byte[] tile = new byte[tileSize];
-                    StopWatch t1 = new Slf4JStopWatch("getTileDirect");
+                    ScopedSpan span2 =
+                            Tracing.currentTracer().startScopedSpan("get_tile_direct");
                     try {
                         pixelBuffer.getTileDirect(
                             tileCtx.z, tileCtx.c, tileCtx.t,
                             region.getX(), region.getY(), width, height, tile);
                     } finally {
-                        t1.stop();
+                        span2.finish();
                     }
 
                     log.debug(
@@ -135,7 +137,7 @@ public class TileRequestHandler {
         } catch (Exception e) {
             log.error("Exception while retrieving tile", e);
         } finally {
-            t0.stop();
+            span.finish();
         }
         return null;
     }
@@ -146,7 +148,8 @@ public class TileRequestHandler {
      */
     private IMetadata createMetadata(Pixels pixels)
             throws EnumerationException {
-        StopWatch t0 = new Slf4JStopWatch("createMetadata");
+        ScopedSpan span =
+                Tracing.currentTracer().startScopedSpan("create_metadata");
         try {
             IMetadata metadata = MetadataTools.createOMEXMLMetadata();
             metadata.setImageID("Image:0", 0);
@@ -166,7 +169,7 @@ public class TileRequestHandler {
                     pixels.getPixelsType().getValue().getValue()), 0);
             return metadata;
         } finally {
-            t0.stop();
+            span.finish();
         }
     }
 
@@ -178,7 +181,8 @@ public class TileRequestHandler {
             throws FormatException, IOException {
         String id = System.currentTimeMillis() + "." + extension;
         ByteArrayHandle handle = new ByteArrayHandle();
-        StopWatch t0 = new Slf4JStopWatch("writeImage");
+        ScopedSpan span =
+                Tracing.currentTracer().startScopedSpan("write_image");
         try (ImageWriter writer = new ImageWriter()) {
             writer.setMetadataRetrieve(metadata);
             Location.mapFile(id, handle);
@@ -194,18 +198,19 @@ public class TileRequestHandler {
         } finally {
             Location.mapFile(id, null);
             handle.close();
-            t0.stop();
+            span.finish();
         }
     }
 
     protected PixelBuffer getPixelBuffer(Pixels pixels)
             throws ApiUsageException {
-        StopWatch t0 = new Slf4JStopWatch("getPixelBuffer");
+        ScopedSpan span =
+                Tracing.currentTracer().startScopedSpan("get_pixel_buffer");
         try {
             return pixelsService.getPixelBuffer(
                     (ome.model.core.Pixels) mapper.reverse(pixels), false);
         } finally {
-            t0.stop();
+            span.finish();
         }
     }
 
@@ -222,7 +227,8 @@ public class TileRequestHandler {
         ctx.put("omero.group", "-1");
         ParametersI params = new ParametersI();
         params.addId(imageId);
-        StopWatch t0 = new Slf4JStopWatch("getPixels");
+        ScopedSpan span =
+                Tracing.currentTracer().startScopedSpan("get_pixels");
         try {
             return (Pixels) client.getSession().getQueryService().findByQuery(
                 "SELECT p FROM Pixels as p " +
@@ -232,7 +238,7 @@ public class TileRequestHandler {
                 params, ctx
             );
         } finally {
-            t0.stop();
+            span.finish();
         }
     }
 

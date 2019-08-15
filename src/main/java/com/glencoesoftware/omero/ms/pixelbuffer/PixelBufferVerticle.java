@@ -25,11 +25,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.glencoesoftware.omero.ms.core.OmeroMsAbstractVerticle;
 import com.glencoesoftware.omero.ms.core.OmeroRequest;
 
 import Glacier2.CannotCreateSessionException;
 import Glacier2.PermissionDeniedException;
-import io.vertx.core.AbstractVerticle;
+import brave.ScopedSpan;
+import brave.Tracing;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 
@@ -41,7 +43,7 @@ import io.vertx.core.eventbus.Message;
  * @author Chris Allan <callan@glencoesoftware.com>
  *
  */
-public class PixelBufferVerticle extends AbstractVerticle {
+public class PixelBufferVerticle extends OmeroMsAbstractVerticle {
 
     private static final org.slf4j.Logger log =
             LoggerFactory.getLogger(PixelBufferVerticle.class);
@@ -92,6 +94,11 @@ public class PixelBufferVerticle extends AbstractVerticle {
             message.fail(400, v);
             return;
         }
+        ScopedSpan span = Tracing.currentTracer().startScopedSpanWithParent(
+                "handle_get_tile",
+                extractor().extract(tileCtx.traceContext).context());
+        span.tag("ctx", message.body());
+        tileCtx.injectCurrentTraceContext();
         log.debug("Load tile with data: {}", message.body());
         log.debug("Connecting to the server: {}, {}, {}",
                   host, port, tileCtx.omeroSessionKey);
@@ -101,6 +108,7 @@ public class PixelBufferVerticle extends AbstractVerticle {
             byte[] tile = request.execute(
                     new TileRequestHandler(context, tileCtx)::getTile);
             if (tile == null) {
+                span.finish();
                 message.fail(
                         404, "Cannot find Image:" + tileCtx.imageId);
             } else {
@@ -116,19 +124,23 @@ public class PixelBufferVerticle extends AbstractVerticle {
                         Optional.ofNullable(tileCtx.format).orElse("bin")
                     )
                 );
+                span.finish();
                 message.reply(tile, deliveryOptions);
             }
         } catch (PermissionDeniedException
                 | CannotCreateSessionException e) {
             String v = "Permission denied";
             log.debug(v);
+            span.error(e);
             message.fail(403, v);
         } catch (IllegalArgumentException e) {
             log.debug("Illegal argument received while retrieving tile", e);
+            span.error(e);
             message.fail(400, e.getMessage());
         } catch (Exception e) {
             String v = "Exception while retrieving tile";
             log.error(v, e);
+            span.error(e);
             message.fail(500, v);
         }
     }
