@@ -55,9 +55,6 @@ public class TileRequestHandler {
     private static final org.slf4j.Logger log =
             LoggerFactory.getLogger(TileRequestHandler.class);
 
-    /** OMERO server Spring application context. */
-    private final ApplicationContext context;
-
     /** OMERO server pixels service. */
     private final PixelsService pixelsService;
 
@@ -74,10 +71,9 @@ public class TileRequestHandler {
      * Default constructor.
      * @param tileCtx {@link TileCtx} object
      */
-    public TileRequestHandler(ApplicationContext context, TileCtx tileCtx) {
+    public TileRequestHandler(PixelsService pixelsService, TileCtx tileCtx) {
         log.info("Setting up handler");
-        this.context = context;
-        pixelsService = (PixelsService) context.getBean("/OMERO/Pixels");
+        this.pixelsService = pixelsService;
         this.tileCtx = tileCtx;
     }
 

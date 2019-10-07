@@ -22,11 +22,11 @@ package com.glencoesoftware.omero.ms.pixelbuffer;
 import java.util.Optional;
 
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationContext;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.glencoesoftware.omero.ms.core.OmeroMsAbstractVerticle;
 import com.glencoesoftware.omero.ms.core.OmeroRequest;
+import com.glencoesoftware.omero.ms.core.PixelsService;
 
 import Glacier2.CannotCreateSessionException;
 import Glacier2.PermissionDeniedException;
@@ -34,6 +34,7 @@ import brave.ScopedSpan;
 import brave.Tracing;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
 
 /**
  * OMERO thumbnail provider worker verticle. This verticle is designed to be
@@ -51,25 +52,22 @@ public class PixelBufferVerticle extends OmeroMsAbstractVerticle {
     public static final String GET_TILE_EVENT =
             "omero.pixel_buffer.get_tile";
 
+    /** OMERO server pixels service. */
+    private final PixelsService pixelsService;
+
     /** OMERO server host */
-    private final String host;
+    private String host;
 
     /** OMERO server port */
-    private final int port;
-
-    /** OMERO server Spring application context. */
-    private ApplicationContext context;
+    private int port;
 
     /**
      * Default constructor.
      * @param host OMERO server host.
      * @param port OMERO server port.
      */
-    public PixelBufferVerticle(
-            String host, int port, ApplicationContext context) {
-        this.host = host;
-        this.port = port;
-        this.context = context;
+    public PixelBufferVerticle(PixelsService pixelsService) {
+        this.pixelsService = pixelsService;
     }
 
     /* (non-Javadoc)
@@ -78,6 +76,13 @@ public class PixelBufferVerticle extends OmeroMsAbstractVerticle {
     @Override
     public void start() {
         log.info("Starting verticle");
+        JsonObject omero = config().getJsonObject("omero");
+        if (omero == null) {
+            throw new IllegalArgumentException(
+                "'omero' block missing from configuration");
+        }
+        host = omero.getString("host");
+        port = omero.getInteger("port");
 
         vertx.eventBus().<String>consumer(
                 GET_TILE_EVENT, this::getTile);
@@ -106,7 +111,7 @@ public class PixelBufferVerticle extends OmeroMsAbstractVerticle {
                  host, port, tileCtx.omeroSessionKey))
         {
             byte[] tile = request.execute(
-                    new TileRequestHandler(context, tileCtx)::getTile);
+                    new TileRequestHandler(pixelsService, tileCtx)::getTile);
             if (tile == null) {
                 span.finish();
                 message.fail(
