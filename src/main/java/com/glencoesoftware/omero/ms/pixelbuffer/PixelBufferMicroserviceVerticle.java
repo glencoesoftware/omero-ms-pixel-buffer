@@ -305,6 +305,7 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
         ScopedSpan span =
                 Tracing.currentTracer().startScopedSpan("pixel_buffer_ms_verticle_get_tile");
         final HttpServerResponse response = event.response();
+        tileCtx.injectCurrentTraceContext();
         vertx.eventBus().<byte[]>request(
                 PixelBufferVerticle.GET_TILE_EVENT,
                 Json.encode(tileCtx), result -> {
