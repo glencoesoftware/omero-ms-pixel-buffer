@@ -163,7 +163,7 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
                 new DeploymentOptions()
                         .setWorker(true)
                         .setInstances(workerPoolSize)
-                        .setWorkerPoolName("render-image-region-pool")
+                        .setWorkerPoolName("pixel-buffer-pool")
                         .setWorkerPoolSize(workerPoolSize)
                         .setConfig(config));
 
