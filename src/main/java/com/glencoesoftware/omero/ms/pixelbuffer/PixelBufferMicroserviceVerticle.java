@@ -143,7 +143,8 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
         context = new ClassPathXmlApplicationContext(
                 "classpath:ome/config.xml",
                 "classpath:ome/services/datalayer.xml",
-                "classpath*:beanRefContext.xml");
+                "classpath*:beanRefContext.xml",
+                "classpath*:service-ms.core.PixelsService.xml");
 
         // Deploy our dependency verticles
         JsonObject omero = config.getJsonObject("omero");

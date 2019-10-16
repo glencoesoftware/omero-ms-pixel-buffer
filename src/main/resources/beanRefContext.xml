@@ -46,7 +46,8 @@
   <bean id="nullMetrics" class="ome.system.metrics.NullMetrics"/>
   
   <bean id="omero-ms-pixel-buffer-verticle"
-        class="com.glencoesoftware.omero.ms.pixelbuffer.PixelBufferVerticle">
+        class="com.glencoesoftware.omero.ms.pixelbuffer.PixelBufferVerticle"
+        scope="prototype">
     <constructor-arg ref="/OMERO/Pixels" />
   </bean>
 
