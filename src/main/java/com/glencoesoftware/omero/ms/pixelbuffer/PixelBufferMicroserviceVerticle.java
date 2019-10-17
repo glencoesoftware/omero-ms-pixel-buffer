@@ -18,10 +18,11 @@
 
 package com.glencoesoftware.omero.ms.pixelbuffer;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-import org.perf4j.StopWatch;
-import org.perf4j.slf4j.Slf4JStopWatch;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -29,16 +30,24 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 import com.glencoesoftware.omero.ms.core.OmeroWebJDBCSessionStore;
 import com.glencoesoftware.omero.ms.core.OmeroWebRedisSessionStore;
 import com.glencoesoftware.omero.ms.core.OmeroWebSessionStore;
-import com.glencoesoftware.omero.ms.core.OmeroWebSessionRequestHandler;
+import com.glencoesoftware.omero.ms.core.PrometheusSpanHandler;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
+import brave.ScopedSpan;
+import brave.Tracing;
+import brave.http.HttpTracing;
+import brave.sampler.Sampler;
+
+import com.glencoesoftware.omero.ms.core.OmeroWebSessionRequestHandler;
+import com.glencoesoftware.omero.ms.core.OmeroHttpTracingHandler;
+import com.glencoesoftware.omero.ms.core.OmeroMsAbstractVerticle;
+import com.glencoesoftware.omero.ms.core.OmeroVerticleFactory;
+
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.config.ConfigStoreOptions;
-import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.http.HttpServer;
@@ -49,14 +58,17 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.json.JsonArray;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.CookieHandler;
+import zipkin2.Span;
+import zipkin2.reporter.AsyncReporter;
+import zipkin2.reporter.okhttp3.OkHttpSender;
+import io.prometheus.client.vertx.MetricsHandler;
 
 /**
  * Main entry point for the OMERO pixel buffer Vert.x microservice server.
  * @author Chris Allan <callan@glencoesoftware.com>
  *
  */
-public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
+public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
 
     private static final org.slf4j.Logger log =
             LoggerFactory.getLogger(PixelBufferMicroserviceVerticle.class);
@@ -67,6 +79,14 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
     /** OMERO server Spring application context. */
     private ApplicationContext context;
 
+    /** VerticleFactory */
+    private OmeroVerticleFactory verticleFactory;
+
+    /** Default number of workers to be assigned to the worker verticle */
+    private int DEFAULT_WORKER_POOL_SIZE;
+
+    private HttpTracing httpTracing;
+
     static {
         com.glencoesoftware.omero.ms.core.SSLUtils.fixDisabledAlgorithms();
     }
@@ -76,8 +96,11 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
      * our current OMERO.web session store.
      */
     @Override
-    public void start(Future<Void> future) {
+    public void start(Promise<Void> prom) {
         log.info("Starting verticle");
+
+        DEFAULT_WORKER_POOL_SIZE =
+                Runtime.getRuntime().availableProcessors() * 2;
 
         ConfigStoreOptions store = new ConfigStoreOptions()
                 .setType("file")
@@ -92,9 +115,9 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                         .addStore(store));
         retriever.getConfig(ar -> {
             try {
-                deploy(ar.result(), future);
+                deploy(ar.result(), prom);
             } catch (Exception e) {
-                future.fail(e);
+                prom.fail(e);
             }
         });
     }
@@ -104,7 +127,7 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
      * configuration.
      * @param config Current configuration
      */
-    public void deploy(JsonObject config, Future<Void> future) {
+    public void deploy(JsonObject config, Promise<Void> prom) {
         log.info("Deploying verticle");
 
         // Set OMERO.server configuration options using system properties
@@ -120,7 +143,8 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         context = new ClassPathXmlApplicationContext(
                 "classpath:ome/config.xml",
                 "classpath:ome/services/datalayer.xml",
-                "classpath*:beanRefContext.xml");
+                "classpath*:beanRefContext.xml",
+                "classpath*:service-ms.core.PixelsService.xml");
 
         // Deploy our dependency verticles
         JsonObject omero = config.getJsonObject("omero");
@@ -128,18 +152,72 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
             throw new IllegalArgumentException(
                     "'omero' block missing from configuration");
         }
-        vertx.deployVerticle(new PixelBufferVerticle(
-                omero.getString("host"), omero.getInteger("port"), context),
+
+        verticleFactory = (OmeroVerticleFactory)
+                context.getBean("omero-ms-verticlefactory");
+        vertx.registerVerticleFactory(verticleFactory);
+
+        int workerPoolSize = Optional.ofNullable(
+                config.getInteger("worker_pool_size")
+                ).orElse(DEFAULT_WORKER_POOL_SIZE);
+        vertx.deployVerticle("omero:omero-ms-pixel-buffer-verticle",
                 new DeploymentOptions()
                         .setWorker(true)
-                        .setMultiThreaded(true)
+                        .setInstances(workerPoolSize)
+                        .setWorkerPoolName("pixel-buffer-pool")
+                        .setWorkerPoolSize(workerPoolSize)
                         .setConfig(config));
 
         HttpServer server = vertx.createHttpServer();
         Router router = Router.router(vertx);
 
-        // Cookie handler so we can pick up the OMERO.web session
-        router.route().handler(CookieHandler.create());
+        router.get("/metrics")
+            .order(-2)
+            .handler(new MetricsHandler());
+
+        try {
+            JsonObject httpTracingConfig = config.getJsonObject("http-tracing");
+            Boolean tracingEnabled = httpTracingConfig.getBoolean("enabled");
+            if(tracingEnabled) {
+                String zipkinUrl = httpTracingConfig.getString("zipkin-url");
+                OkHttpSender sender = OkHttpSender.create(zipkinUrl);
+                AsyncReporter<Span> spanReporter = AsyncReporter.create(sender);
+                PrometheusSpanHandler prometheusSpanHandler = new PrometheusSpanHandler();
+                Tracing tracing = Tracing.newBuilder()
+                    .sampler(Sampler.ALWAYS_SAMPLE)
+                    .localServiceName("omero-ms-pixel-buffer")
+                    .addFinishedSpanHandler(prometheusSpanHandler)
+                    .spanReporter(spanReporter)
+                    .build();
+                httpTracing = HttpTracing.newBuilder(tracing).build();
+                List<String> tags = new ArrayList<String>();
+                tags.add("omero.session_key");
+                tags.add("omero_ms.request_id");
+                Handler<RoutingContext> routingContextHandler =
+                        new OmeroHttpTracingHandler(httpTracing, tags);
+
+                /*Set up HttpTracing Routing */
+                router.route()
+                    .order(-1) // applies before routes
+                    .handler(routingContextHandler)
+                    .failureHandler(routingContextHandler);
+            }
+        }
+        catch (NullPointerException npe) {
+            log.warn("Missing configuration for http tracing");
+        }
+        catch (Exception e) {
+            log.warn("Failed to set up http tracing");
+            log.warn(e.toString());
+        }
+
+        // Establish a unique identifier for every request
+        router.route()
+            .handler((event) -> {
+            String requestId = UUID.randomUUID().toString();
+            event.put("omero_ms.request_id", requestId);
+            event.next();
+        });
 
         // OMERO session handler which picks up the session key from the
         // OMERO.web session and joins it.
@@ -165,7 +243,7 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         router.options().handler(this::getMicroserviceDetails);
 
         router.route().handler(
-                new OmeroWebSessionRequestHandler(config, sessionStore, vertx));
+                new OmeroWebSessionRequestHandler(config, sessionStore));
 
         // Pixel buffer request handlers
         router.get(
@@ -174,11 +252,11 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
 
         int port = config.getInteger("port");
         log.info("Starting HTTP server *:{}", port);
-        server.requestHandler(router::accept).listen(port, result -> {
+        server.requestHandler(router).listen(port, result -> {
             if (result.succeeded()) {
-                future.complete();
+                prom.complete();
             } else {
-                future.fail(result.cause());
+                prom.fail(result.cause());
             }
         });
     }
@@ -225,10 +303,11 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
         TileCtx tileCtx = new TileCtx(
                 request.params(), event.get("omero.session_key"));
 
-        StopWatch t0 = new Slf4JStopWatch(
-                "PixelBufferMicroserviceVerticle.getTile");
+        ScopedSpan span =
+                Tracing.currentTracer().startScopedSpan("pixel_buffer_ms_verticle_get_tile");
         final HttpServerResponse response = event.response();
-        vertx.eventBus().<byte[]>send(
+        tileCtx.injectCurrentTraceContext();
+        vertx.eventBus().<byte[]>request(
                 PixelBufferVerticle.GET_TILE_EVENT,
                 Json.encode(tileCtx), result -> {
             try {
@@ -271,7 +350,7 @@ public class PixelBufferMicroserviceVerticle extends AbstractVerticle {
                 }
             } finally {
                 log.debug("Response ended");
-                t0.stop();
+                span.finish();
             }
         });
     }

@@ -5,9 +5,9 @@ plugins {
 }
 
 group = 'com.glencoesoftware.omero'
-version = '0.4.2'
+version = '0.4.3-SNAPSHOT'
 
-mainClassName = 'io.vertx.core.Starter'
+mainClassName = 'io.vertx.core.Launcher'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -71,12 +71,14 @@ configurations.all {
 }
 
 dependencies {
+	compile 'io.prometheus:simpleclient_vertx:0.6.0'
     compile 'ch.qos.logback:logback-classic:1.1.7'
-    compile ('com.glencoesoftware.omero:omero-ms-core:0.4.1') {
+    compile ('com.glencoesoftware.omero:omero-ms-core:0.4.4-SNAPSHOT') {
         exclude group: 'org.testng', module: 'testng'
     }
-    compile 'io.vertx:vertx-config:3.5.3'
-    compile 'io.vertx:vertx-config-yaml:3.5.3'
+    compile 'org.springframework:spring-context-support:4.3.14.RELEASE'
+    compile 'io.vertx:vertx-config:3.8.1'
+    compile 'io.vertx:vertx-config-yaml:3.8.1'
     compile ('omero:blitz:5.4.10-ice36-b105') {
         exclude group: 'org.testng', module: 'testng'
     }

@@ -94,7 +94,7 @@ output similar to the following::
     Jun 01 14:40:53 demo.glencoesoftware.com systemd[1]: Starting OMERO image region microservice server...
     Jun 01 14:40:54 demo.glencoesoftware.com omero-ms-pixel-buffer[9096]: Jun 01, 2017 2:40:54 PM io.vertx.core.spi.resolver.ResolverProvider
     Jun 01 14:40:54 demo.glencoesoftware.com omero-ms-pixel-buffer[9096]: INFO: Using the default address resolver as the dns resolver could not be loaded
-    Jun 01 14:40:55 demo.glencoesoftware.com omero-ms-pixel-buffer[9096]: Jun 01, 2017 2:40:55 PM io.vertx.core.Starter
+    Jun 01 14:40:55 demo.glencoesoftware.com omero-ms-pixel-buffer[9096]: Jun 01, 2017 2:40:55 PM io.vertx.core.Launcher
     Jun 01 14:40:55 demo.glencoesoftware.com omero-ms-pixel-buffer[9096]: INFO: Succeeded in deploying verticle
 
 Redirecting OMERO.web to the Server
@@ -158,7 +158,7 @@ Eclipse Configuration
         cp src/dist/conf/config.yaml conf/
         # Edit as appropriate
 
-1. Add a new Run Configuration with a main class of `io.vertx.core.Starter`::
+1. Add a new Run Configuration with a main class of `io.vertx.core.Launcher`::
 
         run "com.glencoesoftware.omero.ms.pixelbuffer.PixelBufferMicroserviceVerticle"
 
