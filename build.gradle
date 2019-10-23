@@ -82,6 +82,7 @@ dependencies {
     compile ('omero:blitz:5.4.10-ice36-b105') {
         exclude group: 'org.testng', module: 'testng'
     }
+    compile 'io.prometheus.jmx:collector:0.12.0'
     testCompile 'org.testng:testng:6.10'
 }
 
