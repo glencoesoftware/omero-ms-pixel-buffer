@@ -217,7 +217,11 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
             log.warn(e.toString());
         }
 
-        if(config.containsKey("jmx-metrics-enabled") && config.getBoolean("jmx-metrics-enabled")) {
+        JsonObject jmxMetricsConfig =
+                config.getJsonObject("jmx-metrics", new JsonObject());
+        Boolean jmxMetricsEnabled =
+                jmxMetricsConfig.getBoolean("enabled", false);
+        if (jmxMetricsEnabled) {
             log.info("JMX Metrics Enabled");
             new BuildInfoCollector().register();
             try {
