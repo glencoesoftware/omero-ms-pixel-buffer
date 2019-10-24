@@ -62,6 +62,8 @@ import zipkin2.Span;
 import zipkin2.reporter.AsyncReporter;
 import zipkin2.reporter.okhttp3.OkHttpSender;
 import io.prometheus.client.vertx.MetricsHandler;
+import io.prometheus.jmx.BuildInfoCollector;
+import io.prometheus.jmx.JmxCollector;
 
 /**
  * Main entry point for the OMERO pixel buffer Vert.x microservice server.
@@ -69,6 +71,10 @@ import io.prometheus.client.vertx.MetricsHandler;
  *
  */
 public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
+
+    private static final String JMX_CONFIG =
+            "---\n"
+            + "startDelaySeconds: 0\n";
 
     private static final org.slf4j.Logger log =
             LoggerFactory.getLogger(PixelBufferMicroserviceVerticle.class);
@@ -209,6 +215,23 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
         catch (Exception e) {
             log.warn("Failed to set up http tracing");
             log.warn(e.toString());
+        }
+
+        JsonObject jmxMetricsConfig =
+                config.getJsonObject("jmx-metrics", new JsonObject());
+        Boolean jmxMetricsEnabled =
+                jmxMetricsConfig.getBoolean("enabled", false);
+        if (jmxMetricsEnabled) {
+            log.info("JMX Metrics Enabled");
+            new BuildInfoCollector().register();
+            try {
+                new JmxCollector(JMX_CONFIG).register();
+            } catch (Exception e) {
+                log.error("Error setting up JMX Metrics", e);
+            }
+        }
+        else {
+            log.info("JMX Metrics NOT Enabled");
         }
 
         // Establish a unique identifier for every request
