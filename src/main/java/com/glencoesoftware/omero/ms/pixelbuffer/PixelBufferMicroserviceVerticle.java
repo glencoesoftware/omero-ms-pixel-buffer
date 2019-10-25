@@ -64,6 +64,7 @@ import zipkin2.reporter.okhttp3.OkHttpSender;
 import io.prometheus.client.vertx.MetricsHandler;
 import io.prometheus.jmx.BuildInfoCollector;
 import io.prometheus.jmx.JmxCollector;
+import io.prometheus.client.hotspot.DefaultExports;
 
 /**
  * Main entry point for the OMERO pixel buffer Vert.x microservice server.
@@ -226,6 +227,7 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
             new BuildInfoCollector().register();
             try {
                 new JmxCollector(JMX_CONFIG).register();
+                DefaultExports.initialize();
             } catch (Exception e) {
                 log.error("Error setting up JMX Metrics", e);
             }

@@ -83,6 +83,7 @@ dependencies {
         exclude group: 'org.testng', module: 'testng'
     }
     compile 'io.prometheus.jmx:collector:0.12.0'
+    compile 'io.prometheus:simpleclient_hotspot:0.8.0'
     testCompile 'org.testng:testng:6.10'
 }
 
