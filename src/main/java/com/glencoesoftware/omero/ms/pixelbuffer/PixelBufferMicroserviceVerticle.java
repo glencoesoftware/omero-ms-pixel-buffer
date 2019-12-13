@@ -38,6 +38,7 @@ import brave.http.HttpTracing;
 import brave.sampler.Sampler;
 
 import com.glencoesoftware.omero.ms.core.OmeroWebSessionRequestHandler;
+import com.glencoesoftware.omero.ms.core.LogSpanReporter;
 import com.glencoesoftware.omero.ms.core.OmeroHttpTracingHandler;
 import com.glencoesoftware.omero.ms.core.OmeroMsAbstractVerticle;
 import com.glencoesoftware.omero.ms.core.OmeroVerticleFactory;
@@ -92,7 +93,14 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
     /** Default number of workers to be assigned to the worker verticle */
     private int DEFAULT_WORKER_POOL_SIZE;
 
+    /** Zipkin HTTP Tracing*/
     private HttpTracing httpTracing;
+
+    private OkHttpSender sender;
+
+    private AsyncReporter<Span> spanReporter;
+
+    private Tracing tracing;
 
     static {
         com.glencoesoftware.omero.ms.core.SSLUtils.fixDisabledAlgorithms();
@@ -160,6 +168,52 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
                     "'omero' block missing from configuration");
         }
 
+        JsonObject httpTracingConfig =
+                config.getJsonObject("http-tracing", new JsonObject());
+        Boolean tracingEnabled =
+                httpTracingConfig.getBoolean("enabled", false);
+        if (tracingEnabled) {
+            String zipkinUrl = httpTracingConfig.getString("zipkin-url");
+            sender = OkHttpSender.create(zipkinUrl);
+            AsyncReporter<Span> spanReporter = AsyncReporter.create(sender);
+            PrometheusSpanHandler prometheusSpanHandler = new PrometheusSpanHandler();
+            tracing = Tracing.newBuilder()
+                .sampler(Sampler.ALWAYS_SAMPLE)
+                .localServiceName("omero-ms-pixel-buffer")
+                .addFinishedSpanHandler(prometheusSpanHandler)
+                .spanReporter(spanReporter)
+                .build();
+        } else {
+            log.info("Tracing disabled");
+            PrometheusSpanHandler prometheusSpanHandler = new PrometheusSpanHandler();
+            spanReporter = new LogSpanReporter();
+            tracing = Tracing.newBuilder()
+                    .sampler(Sampler.ALWAYS_SAMPLE)
+                    .localServiceName("omero-ms-pixel-buffer")
+                    .addFinishedSpanHandler(prometheusSpanHandler)
+                    .spanReporter(spanReporter)
+                    .build();
+        }
+        httpTracing = HttpTracing.newBuilder(tracing).build();
+
+        JsonObject jmxMetricsConfig =
+                config.getJsonObject("jmx-metrics", new JsonObject());
+        Boolean jmxMetricsEnabled =
+                jmxMetricsConfig.getBoolean("enabled", false);
+        if (jmxMetricsEnabled) {
+            log.info("JMX Metrics Enabled");
+            new BuildInfoCollector().register();
+            try {
+                new JmxCollector(JMX_CONFIG).register();
+                DefaultExports.initialize();
+            } catch (Exception e) {
+                log.error("Error setting up JMX Metrics", e);
+            }
+        }
+        else {
+            log.info("JMX Metrics NOT Enabled");
+        }
+
         verticleFactory = (OmeroVerticleFactory)
                 context.getBean("omero-ms-verticlefactory");
         vertx.registerVerticleFactory(verticleFactory);
@@ -182,59 +236,16 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
             .order(-2)
             .handler(new MetricsHandler());
 
-        try {
-            JsonObject httpTracingConfig = config.getJsonObject("http-tracing");
-            Boolean tracingEnabled = httpTracingConfig.getBoolean("enabled");
-            if(tracingEnabled) {
-                String zipkinUrl = httpTracingConfig.getString("zipkin-url");
-                OkHttpSender sender = OkHttpSender.create(zipkinUrl);
-                AsyncReporter<Span> spanReporter = AsyncReporter.create(sender);
-                PrometheusSpanHandler prometheusSpanHandler = new PrometheusSpanHandler();
-                Tracing tracing = Tracing.newBuilder()
-                    .sampler(Sampler.ALWAYS_SAMPLE)
-                    .localServiceName("omero-ms-pixel-buffer")
-                    .addFinishedSpanHandler(prometheusSpanHandler)
-                    .spanReporter(spanReporter)
-                    .build();
-                httpTracing = HttpTracing.newBuilder(tracing).build();
-                List<String> tags = new ArrayList<String>();
-                tags.add("omero.session_key");
-                tags.add("omero_ms.request_id");
-                Handler<RoutingContext> routingContextHandler =
-                        new OmeroHttpTracingHandler(httpTracing, tags);
+        List<String> tags = new ArrayList<String>();
+        tags.add("omero.session_key");
 
-                /*Set up HttpTracing Routing */
-                router.route()
-                    .order(-1) // applies before routes
-                    .handler(routingContextHandler)
-                    .failureHandler(routingContextHandler);
-            }
-        }
-        catch (NullPointerException npe) {
-            log.warn("Missing configuration for http tracing");
-        }
-        catch (Exception e) {
-            log.warn("Failed to set up http tracing");
-            log.warn(e.toString());
-        }
-
-        JsonObject jmxMetricsConfig =
-                config.getJsonObject("jmx-metrics", new JsonObject());
-        Boolean jmxMetricsEnabled =
-                jmxMetricsConfig.getBoolean("enabled", false);
-        if (jmxMetricsEnabled) {
-            log.info("JMX Metrics Enabled");
-            new BuildInfoCollector().register();
-            try {
-                new JmxCollector(JMX_CONFIG).register();
-                DefaultExports.initialize();
-            } catch (Exception e) {
-                log.error("Error setting up JMX Metrics", e);
-            }
-        }
-        else {
-            log.info("JMX Metrics NOT Enabled");
-        }
+        Handler<RoutingContext> routingContextHandler =
+                new OmeroHttpTracingHandler(httpTracing, tags);
+        // Set up HttpTracing Routing
+        router.route()
+            .order(-1) // applies before other routes
+            .handler(routingContextHandler)
+            .failureHandler(routingContextHandler);
 
         // Establish a unique identifier for every request
         router.route()
