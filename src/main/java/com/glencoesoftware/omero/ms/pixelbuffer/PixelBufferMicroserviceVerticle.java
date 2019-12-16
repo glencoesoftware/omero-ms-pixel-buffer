@@ -32,7 +32,6 @@ import com.glencoesoftware.omero.ms.core.OmeroWebRedisSessionStore;
 import com.glencoesoftware.omero.ms.core.OmeroWebSessionStore;
 import com.glencoesoftware.omero.ms.core.PrometheusSpanHandler;
 
-import brave.ScopedSpan;
 import brave.Tracing;
 import brave.http.HttpTracing;
 import brave.sampler.Sampler;
@@ -336,13 +335,18 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
     private void getTile(RoutingContext event) {
         log.info("Get tile");
         HttpServerRequest request = event.request();
-        TileCtx tileCtx = new TileCtx(
-                request.params(), event.get("omero.session_key"));
-
-        ScopedSpan span =
-                Tracing.currentTracer().startScopedSpan("pixel_buffer_ms_verticle_get_tile");
-        final HttpServerResponse response = event.response();
+        final TileCtx tileCtx;
+        try {
+            tileCtx = new TileCtx(
+                    request.params(), event.get("omero.session_key"));
+        } catch (IllegalArgumentException e) {
+            HttpServerResponse response = event.response();
+            response.setStatusCode(400).end(e.getMessage());
+            return;
+        }
         tileCtx.injectCurrentTraceContext();
+
+        final HttpServerResponse response = event.response();
         vertx.eventBus().<byte[]>request(
                 PixelBufferVerticle.GET_TILE_EVENT,
                 Json.encode(tileCtx), result -> {
@@ -386,7 +390,6 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
                 }
             } finally {
                 log.debug("Response ended");
-                span.finish();
             }
         });
     }
