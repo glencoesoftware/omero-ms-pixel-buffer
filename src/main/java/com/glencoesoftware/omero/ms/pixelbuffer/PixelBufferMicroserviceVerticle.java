@@ -21,7 +21,6 @@ package com.glencoesoftware.omero.ms.pixelbuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -74,17 +73,17 @@ import io.prometheus.client.hotspot.DefaultExports;
 public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
 
     private static final String JMX_CONFIG =
-            "---\n"
-            + "startDelaySeconds: 0\n";
+        "---\n"
+        + "startDelaySeconds: 0\n";
 
     private static final org.slf4j.Logger log =
             LoggerFactory.getLogger(PixelBufferMicroserviceVerticle.class);
 
-    /** OMERO.web session store */
-    private OmeroWebSessionStore sessionStore;
-
     /** OMERO server Spring application context. */
     private ApplicationContext context;
+
+    /** OMERO.web session store */
+    private OmeroWebSessionStore sessionStore;
 
     /** VerticleFactory */
     private OmeroVerticleFactory verticleFactory;
@@ -160,21 +159,15 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
                 "classpath*:beanRefContext.xml",
                 "classpath*:service-ms.core.PixelsService.xml");
 
-        // Deploy our dependency verticles
-        JsonObject omero = config.getJsonObject("omero");
-        if (omero == null) {
-            throw new IllegalArgumentException(
-                    "'omero' block missing from configuration");
-        }
-
         JsonObject httpTracingConfig =
                 config.getJsonObject("http-tracing", new JsonObject());
         Boolean tracingEnabled =
                 httpTracingConfig.getBoolean("enabled", false);
         if (tracingEnabled) {
             String zipkinUrl = httpTracingConfig.getString("zipkin-url");
+            log.info("Tracing enabled: {}", zipkinUrl);
             sender = OkHttpSender.create(zipkinUrl);
-            AsyncReporter<Span> spanReporter = AsyncReporter.create(sender);
+            spanReporter = AsyncReporter.create(sender);
             PrometheusSpanHandler prometheusSpanHandler = new PrometheusSpanHandler();
             tracing = Tracing.newBuilder()
                 .sampler(Sampler.ALWAYS_SAMPLE)
@@ -216,7 +209,7 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
         verticleFactory = (OmeroVerticleFactory)
                 context.getBean("omero-ms-verticlefactory");
         vertx.registerVerticleFactory(verticleFactory);
-
+        // Deploy our dependency verticles
         int workerPoolSize = Optional.ofNullable(
                 config.getInteger("worker_pool_size")
                 ).orElse(DEFAULT_WORKER_POOL_SIZE);
@@ -246,13 +239,7 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
             .handler(routingContextHandler)
             .failureHandler(routingContextHandler);
 
-        // Establish a unique identifier for every request
-        router.route()
-            .handler((event) -> {
-            String requestId = UUID.randomUUID().toString();
-            event.put("omero_ms.request_id", requestId);
-            event.next();
-        });
+        router.options().handler(this::getMicroserviceDetails);
 
         // OMERO session handler which picks up the session key from the
         // OMERO.web session and joins it.
@@ -273,9 +260,6 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
             throw new IllegalArgumentException(
                 "Missing/invalid value for 'session-store.type' in config");
         }
-
-        // Get PixelBuffer Microservice Information
-        router.options().handler(this::getMicroserviceDetails);
 
         router.route().handler(
                 new OmeroWebSessionRequestHandler(config, sessionStore));
@@ -320,12 +304,12 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
     private void getMicroserviceDetails(RoutingContext event) {
         log.info("Getting Microservice Details");
         String version = Optional.ofNullable(
-            this.getClass().getPackage().getImplementationVersion())
-            .orElse("development");
+            this.getClass().getPackage().getImplementationVersion()
+        ).orElse("development");
         JsonObject resData = new JsonObject()
-                        .put("provider", "PixelBufferMicroservice")
-                        .put("version", version)
-                        .put("features", new JsonArray());
+                .put("provider", "PixelBufferMicroservice")
+                .put("version", version)
+                .put("features", new JsonArray());
         event.response()
             .putHeader("content-type", "application/json")
             .end(resData.encodePrettily());
