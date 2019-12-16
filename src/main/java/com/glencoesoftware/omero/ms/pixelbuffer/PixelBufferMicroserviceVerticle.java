@@ -303,6 +303,13 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
     @Override
     public void stop() throws Exception {
         sessionStore.close();
+        tracing.close();
+        if (spanReporter != null) {
+            spanReporter.close();
+        }
+        if (sender != null) {
+            sender.close();
+        }
     }
 
     /**
