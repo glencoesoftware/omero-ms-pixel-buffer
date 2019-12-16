@@ -327,7 +327,7 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
                         .put("version", version)
                         .put("features", new JsonArray());
         event.response()
-            .putHeader("content-type", "application-json")
+            .putHeader("content-type", "application/json")
             .end(resData.encodePrettily());
     }
 
