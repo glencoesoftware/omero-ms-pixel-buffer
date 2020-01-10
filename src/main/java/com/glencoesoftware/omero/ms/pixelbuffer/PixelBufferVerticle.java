@@ -75,7 +75,6 @@ public class PixelBufferVerticle extends OmeroMsAbstractVerticle {
      */
     @Override
     public void start() {
-        log.info("Starting verticle");
         JsonObject omero = config().getJsonObject("omero");
         if (omero == null) {
             throw new IllegalArgumentException(
@@ -103,10 +102,7 @@ public class PixelBufferVerticle extends OmeroMsAbstractVerticle {
                 "handle_get_tile",
                 extractor().extract(tileCtx.traceContext).context());
         span.tag("ctx", message.body());
-        tileCtx.injectCurrentTraceContext();
-        log.debug("Load tile with data: {}", message.body());
-        log.debug("Connecting to the server: {}, {}, {}",
-                  host, port, tileCtx.omeroSessionKey);
+
         try (OmeroRequest request = new OmeroRequest(
                  host, port, tileCtx.omeroSessionKey))
         {
