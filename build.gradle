@@ -1,13 +1,12 @@
 plugins {
     id 'application'
     id 'eclipse'
-    id 'java'
 }
 
 group = 'com.glencoesoftware.omero'
 version = '0.5.0-SNAPSHOT'
 
-mainClassName = 'io.vertx.core.Launcher'
+mainClassName = 'com.glencoesoftware.omero.ms.image.region.OmeroVertxLauncher'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -19,7 +18,7 @@ repositories {
         url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
     }
     maven {
-        url 'http://artifacts.openmicroscopy.org/artifactory/maven/'
+        url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
     }
     maven {
         url 'https://artifacts.glencoesoftware.com/artifactory/gs-omero-snapshots-local'
@@ -28,63 +27,52 @@ repositories {
 
 configurations.all {
     resolutionStrategy.cacheChangingModulesFor 0, 'minutes'
-    exclude group: 'OME'
-    exclude group: 'antlr'
-    exclude group: 'asm'
-    exclude group: 'backport-util-concurrent'
-    exclude group: 'batik'
-    exclude group: 'cglib'
-    exclude group: 'checkstyle'
+    exclude group: 'com.github.marcus-nl.btm'
+    exclude group: 'com.codahale.metrics'
+    exclude group: 'com.drewnoakes'
+    exclude group: 'com.esotericsoftware.kryo'
+    exclude group: 'com.google.guava'
     exclude group: 'com.jamonapi'
     exclude group: 'com.mortennobel'
-    exclude group: 'com.zeroc', module: 'freeze'
-    exclude group: 'com.zeroc', module: 'icefreeze'
-    exclude group: 'com.zeroc', module: 'icegrid'
     exclude group: 'com.zeroc', module: 'icestorm'
     exclude group: 'commons-beanutils'
     exclude group: 'commons-codec'
-    exclude group: 'commons-collections'
-    exclude group: 'commons-io'
-    exclude group: 'commons-lang'
-    exclude group: 'commons-pool'
-    exclude group: 'dom4j'
     exclude group: 'edu.ucar'
-    exclude group: 'freemarker'
+    exclude group: 'geronimo-spec'
     exclude group: 'gnu.getopt'
-    exclude group: 'hsqldb'
-    exclude group: 'javassist'
-    exclude group: 'javax.jts'
-    exclude group: 'jmock'
-    exclude group: 'net.sourceforge.findbugs'
-    exclude group: 'org.apache.ant'
-    exclude group: 'org.apache.lucene'
+    exclude group: 'joda-time'
+    exclude group: 'net.sf.ehcache'
+    exclude group: 'org.apache.commons'
     exclude group: 'org.apache.httpcomponents'
+    exclude group: 'org.apache.pdfbox'
+    exclude group: 'org.apache.xmlgraphics'
+    exclude group: 'org.hibernate'
     exclude group: 'org.ini4j'
-    exclude group: 'org.uncommons'
+    exclude group: 'org.javassist'
+    exclude group: 'org.quartz-scheduler'
+    exclude group: 'org.scijava'
     exclude group: 'org.subethamail'
-    exclude group: 'pdfbox'
-    exclude group: 'quartz'
     exclude group: 'xerces'
     exclude group: 'xalan'
-    exclude group: 'xml-apis'
-    exclude group: 'zeroc', module: 'ice-db'
 }
 
 dependencies {
-	compile 'io.prometheus:simpleclient_vertx:0.6.0'
-    compile 'ch.qos.logback:logback-classic:1.1.7'
-    compile ('com.glencoesoftware.omero:omero-ms-core:0.4.4') {
-        exclude group: 'org.testng', module: 'testng'
-    }
-    compile 'org.springframework:spring-context-support:4.3.14.RELEASE'
-    compile 'io.vertx:vertx-config:3.8.1'
-    compile 'io.vertx:vertx-config-yaml:3.8.1'
-    compile ('omero:blitz:5.4.10-ice36-b105') {
-        exclude group: 'org.testng', module: 'testng'
-    }
-    compile 'io.prometheus.jmx:collector:0.12.0'
-    compile 'io.prometheus:simpleclient_hotspot:0.8.0'
-    testCompile 'org.testng:testng:6.10'
+	implementation 'io.prometheus:simpleclient_vertx:0.6.0'
+    implementation 'io.zipkin.brave:brave:5.6.8'
+    implementation 'io.zipkin.brave:brave-http:4.13.6'
+    implementation 'io.zipkin.brave:brave-instrumentation-http:5.6.8'
+    implementation 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.10.0'
+    implementation 'ch.qos.logback:logback-classic:1.2.3'
+    implementation 'com.glencoesoftware.omero:omero-ms-core:0.5.0-SNAPSHOT'
+    implementation 'io.vertx:vertx-web:3.8.1'
+    implementation 'io.vertx:vertx-config:3.8.1'
+    implementation 'io.vertx:vertx-config-yaml:3.8.1'
+    implementation 'org.openmicroscopy:omero-blitz:5.5.5'
+    implementation 'io.prometheus.jmx:collector:0.12.0'
+    implementation 'io.prometheus:simpleclient_hotspot:0.8.0'
+    implementation 'com.zeroc:icegrid:3.6.4'
+    testImplementation 'org.testng:testng:6.10'
+    testImplementation 'org.mockito:mockito-core:2.+'
 }
 
 jar {
@@ -92,7 +80,7 @@ jar {
         attributes(
             "Main-Class": mainClassName,
             "Main-Verticle": "com.glencoesoftware.omero.ms.pixelbuffer.PixelBufferMicroserviceVerticle",
-            "Implementation-Version": version
+            "Implementation-Version": archiveVersion
         )
     }
 }
