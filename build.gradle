@@ -37,7 +37,6 @@ configurations.all {
     exclude group: 'edu.ucar'
     exclude group: 'geronimo-spec'
     exclude group: 'gnu.getopt'
-    exclude group: 'joda-time'
     exclude group: 'net.sf.ehcache'
     exclude group: 'org.apache.commons'
     exclude group: 'org.apache.httpcomponents'
