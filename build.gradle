@@ -27,7 +27,6 @@ repositories {
 
 configurations.all {
     resolutionStrategy.cacheChangingModulesFor 0, 'minutes'
-    exclude group: 'com.github.marcus-nl.btm'
     exclude group: 'com.codahale.metrics'
     exclude group: 'com.drewnoakes'
     exclude group: 'com.esotericsoftware.kryo'
