@@ -44,7 +44,6 @@ configurations.all {
     exclude group: 'org.apache.httpcomponents'
     exclude group: 'org.apache.pdfbox'
     exclude group: 'org.apache.xmlgraphics'
-    exclude group: 'org.hibernate'
     exclude group: 'org.ini4j'
     exclude group: 'org.javassist'
     exclude group: 'org.quartz-scheduler'
