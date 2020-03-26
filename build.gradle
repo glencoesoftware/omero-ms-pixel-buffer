@@ -46,7 +46,6 @@ configurations.all {
     exclude group: 'org.ini4j'
     exclude group: 'org.javassist'
     exclude group: 'org.quartz-scheduler'
-    exclude group: 'org.scijava'
     exclude group: 'org.subethamail'
     exclude group: 'xerces'
     exclude group: 'xalan'
