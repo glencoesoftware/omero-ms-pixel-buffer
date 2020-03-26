@@ -29,7 +29,6 @@ configurations.all {
     resolutionStrategy.cacheChangingModulesFor 0, 'minutes'
     exclude group: 'com.codahale.metrics'
     exclude group: 'com.drewnoakes'
-    exclude group: 'com.esotericsoftware.kryo'
     exclude group: 'com.jamonapi'
     exclude group: 'com.mortennobel'
     exclude group: 'com.zeroc', module: 'icestorm'
