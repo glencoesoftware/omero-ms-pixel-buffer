@@ -6,7 +6,7 @@ plugins {
 group = 'com.glencoesoftware.omero'
 version = '0.5.0-SNAPSHOT'
 
-mainClassName = 'com.glencoesoftware.omero.ms.image.region.OmeroVertxLauncher'
+mainClassName = 'io.vertx.core.Launcher'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
