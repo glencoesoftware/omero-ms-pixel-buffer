@@ -56,6 +56,7 @@ dependencies {
     implementation 'io.zipkin.brave:brave-instrumentation-http:5.6.8'
     implementation 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.10.0'
     implementation 'ch.qos.logback:logback-classic:1.2.3'
+    implementation 'org.slf4j:log4j-over-slf4j:1.7.30'
     implementation 'com.glencoesoftware.omero:omero-ms-core:0.5.0-SNAPSHOT'
     implementation 'io.vertx:vertx-web:3.8.1'
     implementation 'io.vertx:vertx-config:3.8.1'
