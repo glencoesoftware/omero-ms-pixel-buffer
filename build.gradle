@@ -33,7 +33,6 @@ configurations.all {
     exclude group: 'com.zeroc', module: 'icestorm'
     exclude group: 'commons-beanutils'
     exclude group: 'commons-codec'
-    exclude group: 'edu.ucar'
     exclude group: 'geronimo-spec'
     exclude group: 'gnu.getopt'
     exclude group: 'net.sf.ehcache'
