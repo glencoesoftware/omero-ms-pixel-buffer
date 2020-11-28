@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.glencoesoftware.omero'
-version = '0.5.2-SNAPSHOT'
+version = '0.5.2'
 
 mainClassName = 'io.vertx.core.Launcher'
 
