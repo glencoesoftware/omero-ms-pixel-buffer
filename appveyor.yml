@@ -14,7 +14,6 @@ test_script:
 
 after_test:
   - gradlew distZip
-  - IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER gradlew -PArtifactoryUserName=%ARTIFACTORY_USERNAME% -PArtifactoryPassword=%ARTIFACTORY_PASSWORD% uploadArchives
 
 artifacts:
   - path: build\distributions\*
