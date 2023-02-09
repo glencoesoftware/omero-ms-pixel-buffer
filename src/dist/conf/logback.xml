@@ -8,9 +8,11 @@
   </appender>
 
   <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>${application.home:-.}/logs/omero-ms.log</file>
       <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${application.home:-.}/logs/omero-ms.%d{yyyy-MM-dd}.log</fileNamePattern>
-      </rollingPolicy>
+            <fileNamePattern>${application.home:-.}/logs/omero-ms.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>7</maxHistory>
+    </rollingPolicy>
     <encoder>
       <pattern>%date [%thread] %-5level %logger{36} - %msg%n</pattern>
     </encoder>
@@ -21,6 +23,6 @@
   <logger name="loci.formats.Memoizer" level="INFO"/><!-- Bio-Formats memoizer -->
 
   <root level="info">
-    <appender-ref ref="STDOUT" />
+    <appender-ref ref="FILE" />
   </root>
 </configuration>
