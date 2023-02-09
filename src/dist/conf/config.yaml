@@ -1,5 +1,5 @@
 # The port that the microservice will listen on
-port: 8080
+port: 8082
 # OMERO server that the microservice will communicate with (as a client)
 omero:
     host: "localhost"

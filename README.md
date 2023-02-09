@@ -106,7 +106,7 @@ What follows is a snippet which can be placed in your nginx configuration,
 image region microservice server endpoint::
 
     upstream pixel_buffer_backend {
-        server 127.0.0.1:8080 fail_timeout=0 max_fails=0;
+        server 127.0.0.1:8082 fail_timeout=0 max_fails=0;
     }
 
     ...
@@ -135,7 +135,7 @@ value. This is the OMERO.web session key.
 1. Run single or multiple tile tests using `curl`::
 
         curl -H 'Cookie: sessionid=<omero_web_session_key>' \
-            http://localhost:8080/tile/<image_id>/<z>/<c>/<t>?x=<x>&y=<y>&w=<w>&h=<h>&format=<format>&filename=<filename>
+            http://localhost:8082/tile/<image_id>/<z>/<c>/<t>?x=<x>&y=<y>&w=<w>&h=<h>&format=<format>&filename=<filename>
 
 Valid formats, if missing the format will be raw pixels, include:
 
