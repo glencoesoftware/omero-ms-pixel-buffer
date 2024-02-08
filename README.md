@@ -9,8 +9,8 @@ OMERO.web.
 Requirements
 ============
 
-* OMERO 5.4.x+
-* OMERO.web 5.4.x+
+* OMERO 5.6.x+
+* OMERO.web 5.6.x+
 * Redis backed sessions
 * Java 8+
 
@@ -120,7 +120,7 @@ Development Installation
 
 1. Clone the repository::
 
-        git clone git@github.com:glencoesoftware/omero-ms-pixel-buffer.git
+        git clone https://github.com/glencoesoftware/omero-ms-pixel-buffer.git
 
 1. Run the Gradle build and utilize the artifacts as required::
 
