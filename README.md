@@ -1,5 +1,3 @@
-[![AppVeyor status](https://ci.appveyor.com/api/projects/status/github/omero-ms-pixel-buffer)](https://ci.appveyor.com/project/gs-jenkins/omero-ms-pixel-buffer)
-
 OMERO Pixel Data Microservice
 =============================
 
