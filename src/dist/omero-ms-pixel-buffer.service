@@ -1,6 +1,7 @@
 [Unit]
 Description=OMERO pixel data microservice server
-Requires=redis.service
+Requires=multi-user.target
+After=multi-user.target
 After=network.service
 
 [Service]
@@ -11,6 +12,8 @@ ExecStart=/opt/omero/OMERO.ms/omero-ms-pixel-buffer/current/bin/omero-ms-pixel-b
 User=omero
 Group=omero
 Restart=no
+LimitNPROC=16384
+LimitNOFILE=16384
 
 [Install]
 WantedBy=multi-user.target
