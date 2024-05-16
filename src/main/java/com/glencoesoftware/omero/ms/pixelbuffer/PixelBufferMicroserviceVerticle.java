@@ -157,6 +157,7 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
         context = new ClassPathXmlApplicationContext(
                 "classpath:ome/config.xml",
                 "classpath:ome/services/datalayer.xml",
+                "classpath*:blitz/*PixelBuffer.xml",
                 "classpath*:beanRefContext.xml");
 
         JsonObject httpTracingConfig =
