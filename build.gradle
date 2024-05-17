@@ -37,7 +37,6 @@ configurations.all {
     exclude group: 'gnu.getopt'
     exclude group: 'net.sf.ehcache'
     exclude group: 'org.apache.commons'
-    exclude group: 'org.apache.httpcomponents'
     exclude group: 'org.apache.pdfbox'
     exclude group: 'org.apache.xmlgraphics'
     exclude group: 'org.ini4j'
