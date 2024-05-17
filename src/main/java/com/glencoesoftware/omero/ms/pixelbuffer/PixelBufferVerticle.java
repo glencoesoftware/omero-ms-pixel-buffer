@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.glencoesoftware.omero.ms.core.OmeroMsAbstractVerticle;
 import com.glencoesoftware.omero.ms.core.OmeroRequest;
-import com.glencoesoftware.omero.ms.core.PixelsService;
+import com.glencoesoftware.omero.zarr.ZarrPixelsService;
 
 import Glacier2.CannotCreateSessionException;
 import Glacier2.PermissionDeniedException;
@@ -53,7 +53,7 @@ public class PixelBufferVerticle extends OmeroMsAbstractVerticle {
             "omero.pixel_buffer.get_tile";
 
     /** OMERO server pixels service. */
-    private final PixelsService pixelsService;
+    private final ZarrPixelsService pixelsService;
 
     /** OMERO server host */
     private String host;
@@ -66,7 +66,7 @@ public class PixelBufferVerticle extends OmeroMsAbstractVerticle {
      * @param host OMERO server host.
      * @param port OMERO server port.
      */
-    public PixelBufferVerticle(PixelsService pixelsService) {
+    public PixelBufferVerticle(ZarrPixelsService pixelsService) {
         this.pixelsService = pixelsService;
     }
 

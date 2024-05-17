@@ -4,12 +4,12 @@ plugins {
 }
 
 group = 'com.glencoesoftware.omero'
-version = '0.6.5-SNAPSHOT'
+version = '0.7.0-SNAPSHOT'
 
 mainClassName = 'io.vertx.core.Launcher'
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = 1.11
+targetCompatibility = 1.11
 
 repositories {
     mavenCentral()
@@ -56,11 +56,12 @@ dependencies {
     implementation 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.10.0'
     implementation 'ch.qos.logback:logback-classic:1.3.14'
     implementation 'org.slf4j:log4j-over-slf4j:1.7.32'
-    implementation 'com.glencoesoftware.omero:omero-ms-core:0.7.0'
+    implementation 'com.glencoesoftware.omero:omero-zarr-pixel-buffer:0.4.0'
+    implementation 'com.glencoesoftware.omero:omero-ms-core:0.9.0'
     implementation 'io.vertx:vertx-web:3.8.1'
     implementation 'io.vertx:vertx-config:3.8.1'
     implementation 'io.vertx:vertx-config-yaml:3.8.1'
-    implementation 'org.openmicroscopy:omero-blitz:5.7.2'
+    implementation 'org.openmicroscopy:omero-blitz:5.7.3'
     implementation 'io.prometheus.jmx:collector:0.12.0'
     implementation 'io.prometheus:simpleclient_hotspot:0.8.0'
     implementation 'com.zeroc:icegrid:3.6.4'

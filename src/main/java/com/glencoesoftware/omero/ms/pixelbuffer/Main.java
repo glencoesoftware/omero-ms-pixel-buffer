@@ -14,6 +14,7 @@ public class Main {
         ApplicationContext context = new ClassPathXmlApplicationContext(
                 "classpath:ome/config.xml",
                 "classpath:ome/services/datalayer.xml",
+                "classpath*:blitz/*PixelBuffer.xml",
                 "classpath*:beanRefContext.xml");
         PixelsService bean = (PixelsService) context.getBean("/OMERO/Pixels");
         System.err.println("Bean: " + bean);
