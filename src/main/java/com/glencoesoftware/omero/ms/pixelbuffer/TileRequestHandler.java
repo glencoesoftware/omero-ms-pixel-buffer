@@ -229,7 +229,7 @@ public class TileRequestHandler {
             return (Pixels) client.getSession().getQueryService().findByQuery(
                 "SELECT p FROM Pixels as p " +
                 "JOIN FETCH p.image as i " +
-                "JOIN FETCH i.format " +
+                "LEFT OUTER JOIN FETCH i.format " +
                 "LEFT OUTER JOIN FETCH i.details.externalInfo " +
                 "JOIN FETCH p.pixelsType " +
                 "WHERE i.id = :id",
