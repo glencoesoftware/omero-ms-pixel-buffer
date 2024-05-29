@@ -96,3 +96,7 @@ distributions {
 applicationDefaultJvmArgs = [
     "-Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory"
 ]
+
+startScripts {
+  classpath = files('$APP_HOME/lib/*')
+}
