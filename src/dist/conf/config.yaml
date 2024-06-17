@@ -12,6 +12,7 @@ omero.server:
     omero.db.port: "5432"
     omero.db.user: "omero"
     omero.db.pass: "omero"
+    omero.pixeldata.pixels_service: "ZarrPixelsService"
     # OMERO_HOME/lib/scripts
     omero.script_repo_root: "/opt/omero/OMERO.current/lib/scripts"
 # Information about the session store.
