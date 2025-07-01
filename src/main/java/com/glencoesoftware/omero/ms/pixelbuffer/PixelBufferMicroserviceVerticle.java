@@ -48,6 +48,7 @@ import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
+import io.vertx.core.ThreadingModel;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.http.HttpServer;
@@ -224,7 +225,7 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
                 ).orElse(DEFAULT_WORKER_POOL_SIZE);
         vertx.deployVerticle("omero:omero-ms-pixel-buffer-verticle",
                 new DeploymentOptions()
-                        .setWorker(true)
+                        .setThreadingModel(ThreadingModel.WORKER)
                         .setInstances(workerPoolSize)
                         .setWorkerPoolName("pixel-buffer-pool")
                         .setWorkerPoolSize(workerPoolSize)
