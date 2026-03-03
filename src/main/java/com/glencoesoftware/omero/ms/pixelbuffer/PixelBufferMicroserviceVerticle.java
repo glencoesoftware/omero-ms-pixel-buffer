@@ -50,6 +50,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.ThreadingModel;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerRequest;
@@ -89,6 +90,9 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
 
     /** VerticleFactory */
     private OmeroVerticleFactory verticleFactory;
+
+    /** DeliveryOptions (including event bus send timeout) */
+    private DeliveryOptions deliveryOptions;
 
     /** Default number of workers to be assigned to the worker verticle */
     private int DEFAULT_WORKER_POOL_SIZE;
@@ -140,6 +144,11 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
      */
     public void deploy(JsonObject config, Promise<Void> prom) {
         log.info("Deploying verticle");
+
+        deliveryOptions = new DeliveryOptions()
+                .setSendTimeout(Optional.ofNullable(
+                        config.getInteger("event-bus-send-timeout")
+                        ).orElse(15000));
 
         // Set OMERO.server configuration options using system properties
         JsonObject omeroServer = config.getJsonObject("omero.server");
@@ -350,7 +359,7 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
         final HttpServerResponse response = event.response();
         vertx.eventBus().<byte[]>request(
                 PixelBufferVerticle.GET_TILE_EVENT,
-                Json.encode(tileCtx), result -> {
+                Json.encode(tileCtx), deliveryOptions, result -> {
             try {
                 if (result.failed()) {
                     Throwable t = result.cause();

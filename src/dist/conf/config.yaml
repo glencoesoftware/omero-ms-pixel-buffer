@@ -1,5 +1,8 @@
 # The port that the microservice will listen on
 port: 8082
+# EventBus Send Timeout in ms - default in microservice is 15000
+# see http://vertx.io/docs/apidocs/constant-values.html#io.vertx.core.eventbus.DeliveryOptions.DEFAULT_TIMEOUT
+event-bus-send-timeout: 15000
 # OMERO server that the microservice will communicate with (as a client)
 omero:
     host: "localhost"
