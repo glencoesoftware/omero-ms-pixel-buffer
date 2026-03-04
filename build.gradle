@@ -60,7 +60,7 @@ dependencies {
     implementation 'io.vertx:vertx-web:4.5.16'
     implementation 'io.vertx:vertx-config:4.5.16'
     implementation 'io.vertx:vertx-config-yaml:4.5.16'
-    implementation 'org.openmicroscopy:omero-blitz:5.8.3'
+    implementation 'org.openmicroscopy:omero-blitz:5.8.4'
     implementation 'io.prometheus.jmx:collector:0.12.0'
     implementation 'io.prometheus:simpleclient_hotspot:0.8.0'
     implementation 'com.zeroc:icegrid:3.6.5'
