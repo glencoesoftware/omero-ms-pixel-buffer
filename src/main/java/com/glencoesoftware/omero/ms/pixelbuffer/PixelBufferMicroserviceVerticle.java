@@ -173,29 +173,21 @@ public class PixelBufferMicroserviceVerticle extends OmeroMsAbstractVerticle {
         if (tracingEnabled) {
             String zipkinUrl = httpTracingConfig.getString("zipkin-url");
             try {
-                log.info("Tracing enabled: {}", zipkinUrl);
-                if(Pattern.matches("^http.*", zipkinUrl)) {
+                if(zipkinUrl != null) {
+                    log.info("Tracing enabled: {}", zipkinUrl);
                     sender = OkHttpSender.create(zipkinUrl);
                     spanReporter = AsyncReporter.create(sender);
-                    PrometheusSpanHandler prometheusSpanHandler = new PrometheusSpanHandler();
-                    tracing = Tracing.newBuilder()
+                } else {
+                    log.info("Tracing enabled without zipkin URL - writing traces to logs");
+                    spanReporter = new LogSpanReporter();
+                }
+                PrometheusSpanHandler prometheusSpanHandler = new PrometheusSpanHandler();
+                tracing = Tracing.newBuilder()
                         .sampler(Sampler.ALWAYS_SAMPLE)
-                        .localServiceName("omero-ms-pixel-buffer")
+                        .localServiceName("omero-ms-image-region")
                         .addFinishedSpanHandler(prometheusSpanHandler)
                         .spanReporter(spanReporter)
                         .build();
-                } else if (Pattern.matches("^slf4j.*", zipkinUrl)) {
-                    PrometheusSpanHandler prometheusSpanHandler = new PrometheusSpanHandler();
-                    spanReporter = new LogSpanReporter();
-                    tracing = Tracing.newBuilder()
-                            .sampler(Sampler.ALWAYS_SAMPLE)
-                            .localServiceName("omero-ms-pixel-buffer")
-                            .addFinishedSpanHandler(prometheusSpanHandler)
-                            .spanReporter(spanReporter)
-                            .build();
-                } else {
-                    throw new IllegalArgumentException("Invalid URL configured for tracing");
-                }
             } catch (Exception e) {
                 log.error("Tracing enabled but configured incorrectly");
                 throw e;
