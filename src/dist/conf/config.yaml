@@ -33,10 +33,11 @@ session-store:
     # For Redis in non-protected mode
     # uri: "redis://:password@localhost:6379/1"
 
-# Configuration for zipkin http tracing
+# Configuration for HTTP tracing
+# If enabled is true but no zipkin-url is provided, spans will be logged
 http-tracing:
     enabled: false
-    zipkin-url: "http://localhost:9411/api/v2/spans"
+    # zipkin-url: "http://localhost:9411/api/v2/spans"
 
 # Enable JMX Prometheus Metrics
 jmx-metrics:
