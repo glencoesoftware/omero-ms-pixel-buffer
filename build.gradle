@@ -14,14 +14,14 @@ targetCompatibility = 1.11
 repositories {
     mavenCentral()
     maven {
-        name 'Unidata'
-        url 'https://artifacts.unidata.ucar.edu/repository/unidata-releases/'
+        name = 'Unidata'
+        url = 'https://artifacts.unidata.ucar.edu/repository/unidata-releases/'
     }
     maven {
-        url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
+        url = 'https://artifacts.openmicroscopy.org/artifactory/maven/'
     }
     maven {
-        url 'https://artifacts.glencoesoftware.com/artifactory/gs-omero-snapshots-local'
+        url = 'https://artifacts.glencoesoftware.com/artifactory/gs-omero-snapshots-local'
     }
 }
 
