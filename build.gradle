@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.glencoesoftware.omero'
-version = '0.9.0'
+version = '0.10.0-SNAPSHOT'
 
 mainClassName = 'io.vertx.core.Launcher'
 
@@ -14,14 +14,14 @@ targetCompatibility = 1.11
 repositories {
     mavenCentral()
     maven {
-        name 'Unidata'
-        url 'https://artifacts.unidata.ucar.edu/repository/unidata-releases/'
+        name = 'Unidata'
+        url = 'https://artifacts.unidata.ucar.edu/repository/unidata-releases/'
     }
     maven {
-        url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
+        url = 'https://artifacts.openmicroscopy.org/artifactory/maven/'
     }
     maven {
-        url 'https://artifacts.glencoesoftware.com/artifactory/gs-omero-snapshots-local'
+        url = 'https://artifacts.glencoesoftware.com/artifactory/gs-omero-snapshots-local'
     }
 }
 
@@ -54,12 +54,12 @@ dependencies {
     implementation 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.10.0'
     implementation 'ch.qos.logback:logback-classic:1.3.15'
     implementation 'org.slf4j:log4j-over-slf4j:1.7.32'
-    implementation 'com.glencoesoftware.omero:omero-zarr-pixel-buffer:0.6.1'
+    implementation 'com.glencoesoftware.omero:omero-zarr-pixel-buffer:0.7.0'
     implementation 'com.glencoesoftware.omero:omero-ms-core:0.12.0'
     implementation 'io.vertx:vertx-web:4.5.16'
     implementation 'io.vertx:vertx-config:4.5.16'
     implementation 'io.vertx:vertx-config-yaml:4.5.16'
-    implementation 'org.openmicroscopy:omero-blitz:5.8.4'
+    implementation 'org.openmicroscopy:omero-blitz:5.8.5'
     implementation 'io.prometheus.jmx:collector:0.12.0'
     implementation 'io.prometheus:simpleclient_hotspot:0.8.0'
     implementation 'com.zeroc:icegrid:3.6.5'
