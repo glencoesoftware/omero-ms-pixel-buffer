@@ -14,9 +14,9 @@ jobs:
         java: [11, 17, 21]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up JDK ${{ matrix.java }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: ${{ matrix.java }}
           distribution: 'zulu'
@@ -24,7 +24,7 @@ jobs:
         run: |
           ./gradlew build
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: omero-ms-pixel-buffer ${{ matrix.java }}
           path: build/distributions/*
@@ -35,7 +35,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Create a GitHub release
         run: gh release create --generate-notes "${GITHUB_REF#refs/tags/}"
         env:
