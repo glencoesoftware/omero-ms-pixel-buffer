@@ -54,7 +54,7 @@ dependencies {
     implementation 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.10.0'
     implementation 'ch.qos.logback:logback-classic:1.3.15'
     implementation 'org.slf4j:log4j-over-slf4j:1.7.32'
-    implementation 'com.glencoesoftware.omero:omero-zarr-pixel-buffer:0.7.0'
+    implementation 'com.glencoesoftware.omero:omero-zarr-pixel-buffer:0.7.1'
     implementation 'com.glencoesoftware.omero:omero-ms-core:0.12.0'
     implementation 'io.vertx:vertx-web:4.5.16'
     implementation 'io.vertx:vertx-config:4.5.16'
@@ -72,7 +72,14 @@ jar {
         attributes(
             "Main-Class": mainClassName,
             "Main-Verticle": "com.glencoesoftware.omero.ms.pixelbuffer.PixelBufferMicroserviceVerticle",
-            "Implementation-Version": archiveVersion
+            "Created-By": "Gradle ${gradle.gradleVersion}",
+            "Build-Jdk": "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
+            "Built-By": System.properties['user.name'],
+            "Built-On": new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(new Date()),
+            "Implementation-Build": "git rev-parse --verify HEAD".execute().getText().trim(),
+            "Implementation-Title": "OMERO Pixel Buffer Microservice",
+            "Implementation-Version": archiveVersion,
+            "Implementation-Vendor": "Glencoe Software Inc.",
         )
     }
 }
